@@ -217,3 +217,45 @@ export async function hasAnyPatients(): Promise<boolean> {
   if (error) throw error;
   return (count ?? 0) > 0;
 }
+
+export type NewPatientInput = {
+  full_name: string;
+  date_of_birth: string;
+  weight_kg: number;
+  gender: "M" | "F";
+  parent_name: string;
+  parent_phone: string;
+  allergies: string[];
+};
+
+/** Registers a patient, books today's appointment, and adds past-due/due-today vaccines. */
+export async function registerPatient(input: NewPatientInput) {
+  const userId = await requireUserId();
+  const { data: patient, error } = await supabase
+    .from("patients")
+    .insert({ ...input, user_id: userId })
+    .select("id")
+    .single();
+  if (error) throw error;
+  const { error: cErr } = await supabase
+    .from("consultations")
+    .insert({ patient_id: patient.id, appointment_status: "scheduled" });
+  if (cErr) throw cErr;
+  const today = todayISO();
+  const vax = IAP_SCHEDULE.flatMap((m) => {
+    const scheduled = addDays(input.date_of_birth, m.days);
+    if (scheduled > today) return [];
+    return m.vaccines.map((v) => ({
+      patient_id: patient.id,
+      vaccine_name: v,
+      scheduled_date: scheduled,
+      administered_date: null,
+      status: "scheduled",
+    }));
+  });
+  if (vax.length > 0) {
+    const { error: vErr } = await supabase.from("vaccination_records").insert(vax);
+    if (vErr) throw vErr;
+  }
+  return patient.id;
+}
