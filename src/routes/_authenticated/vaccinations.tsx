@@ -56,7 +56,7 @@ function VaccinationsPage() {
   const today = todayISO();
   const q = useQuery({ queryKey: QK, queryFn: fetchData });
 
-  async function upsert(patient: Patient, item: ScheduleItem, fields: Record<string, string>) {
+  async function upsert(patient: Patient, item: ScheduleItem, fields: { reminder_sent_at?: string; administered_date?: string; status?: string }) {
     if (item.record) {
       const { error } = await supabase.from("vaccination_records").update(fields).eq("id", item.record.id);
       if (error) throw error;
