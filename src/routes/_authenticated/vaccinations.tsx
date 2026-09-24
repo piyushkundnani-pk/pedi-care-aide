@@ -67,6 +67,7 @@ function VaccinationsPage() {
       if (error) throw error;
     } else {
       const { error } = await supabase.from("vaccination_records").insert({
+        user_id: (await supabase.auth.getUser()).data.user!.id,
         patient_id: patient.id,
         vaccine_name: item.vaccine,
         scheduled_date: item.scheduledDate,

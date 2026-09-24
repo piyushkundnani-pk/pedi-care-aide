@@ -99,6 +99,7 @@ const SKIP: Record<string, string> = {
 };
 
 type VaxRow = {
+  user_id: string;
   patient_id: string;
   vaccine_name: string;
   scheduled_date: string;
@@ -106,7 +107,7 @@ type VaxRow = {
   status: string;
 };
 
-function buildVaccinations(byName: Map<string, string>): VaxRow[] {
+function buildVaccinations(userId: string, byName: Map<string, string>): VaxRow[] {
   const today = todayISO();
   const rows: VaxRow[] = [];
   for (const p of SAMPLE_PATIENTS) {
@@ -120,13 +121,13 @@ function buildVaccinations(byName: Map<string, string>): VaxRow[] {
         if (SKIP[p.full_name] === vaccine) continue;
         let given = addDays(scheduled, Math.floor(Math.random() * 15));
         if (given > today) given = today;
-        rows.push({ patient_id: patientId, vaccine_name: vaccine, scheduled_date: scheduled, administered_date: given, status: "administered" });
+        rows.push({ user_id: userId, patient_id: patientId, vaccine_name: vaccine, scheduled_date: scheduled, administered_date: given, status: "administered" });
       }
     }
   }
   const aarav = byName.get("Aarav Sharma");
   if (aarav) {
-    rows.push({ patient_id: aarav, vaccine_name: "OPV-1", scheduled_date: today, administered_date: null, status: "scheduled" });
+    rows.push({ user_id: userId, patient_id: aarav, vaccine_name: "OPV-1", scheduled_date: today, administered_date: null, status: "scheduled" });
   }
   return rows;
 }
@@ -157,6 +158,7 @@ async function insertPatients(userId: string, list: typeof SAMPLE_PATIENTS) {
   if (error) throw error;
   const { error: cErr } = await supabase.from("consultations").insert(
     (data ?? []).map((row) => ({
+      user_id: userId,
       patient_id: row.id,
       symptoms: list.find((p) => p.full_name === row.full_name)?.symptoms ?? null,
       appointment_status: "scheduled",
@@ -167,15 +169,18 @@ async function insertPatients(userId: string, list: typeof SAMPLE_PATIENTS) {
 }
 
 /** Destructive: deletes the clinician's data, then loads the five-patient demo day. */
-export async function resetDemoData(): Promise<{ created: number }> {
+export async function resetDemoData(): Promise<{ created: number; email: string }> {
+  const { data: u } = await supabase.auth.getUser();
   const userId = await requireUserId();
-  const { error: deleteError } = await supabase.from("patients").delete().eq("user_id", userId);
-  if (deleteError) throw deleteError;
+  for (const t of ["prescriptions", "vaccination_records", "consultations", "patients"] as const) {
+    const { error: deleteError } = await supabase.from(t).delete().eq("user_id", userId);
+    if (deleteError) throw deleteError;
+  }
   const inserted = await insertPatients(userId, SAMPLE_PATIENTS);
   const byName = new Map(inserted.map((p) => [p.full_name, p.id]));
-  const { error } = await supabase.from("vaccination_records").insert(buildVaccinations(byName));
+  const { error } = await supabase.from("vaccination_records").insert(buildVaccinations(userId, byName));
   if (error) throw error;
-  return { created: inserted.length };
+  return { created: inserted.length, email: u.user?.email ?? "" };
 }
 
 /** Additive: inserts only missing sample patients and vaccination records. */
@@ -200,7 +205,7 @@ export async function mergeSampleData(): Promise<{ added: number }> {
     .in("patient_id", sampleIds);
   if (vErr) throw vErr;
   const have = new Set((vax ?? []).map((v) => `${v.patient_id}|${v.vaccine_name}`));
-  const toAdd = buildVaccinations(byName).filter((v) => !have.has(`${v.patient_id}|${v.vaccine_name}`));
+  const toAdd = buildVaccinations(userId, byName).filter((v) => !have.has(`${v.patient_id}|${v.vaccine_name}`));
   if (toAdd.length > 0) {
     const { error: iErr } = await supabase.from("vaccination_records").insert(toAdd);
     if (iErr) throw iErr;
@@ -239,7 +244,7 @@ export async function registerPatient(input: NewPatientInput, administered: "all
   if (error) throw error;
   const { error: cErr } = await supabase
     .from("consultations")
-    .insert({ patient_id: patient.id, appointment_status: "scheduled" });
+    .insert({ user_id: userId, patient_id: patient.id, appointment_status: "scheduled" });
   if (cErr) throw cErr;
   const today = todayISO();
   const vax = IAP_SCHEDULE.flatMap((m) => {
@@ -251,6 +256,7 @@ export async function registerPatient(input: NewPatientInput, administered: "all
         let given = addDays(scheduled, Math.floor(Math.random() * 15));
         if (given > today) given = today;
         return {
+          user_id: userId,
           patient_id: patient.id,
           vaccine_name: v,
           scheduled_date: scheduled,

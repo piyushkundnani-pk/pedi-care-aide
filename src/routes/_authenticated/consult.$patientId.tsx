@@ -118,15 +118,19 @@ function ConsultPage() {
       .order("consult_date", { ascending: true })
       .limit(1)
       .maybeSingle();
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData.user?.id;
+    if (!userId) { setSaving(false); toast.error("You must be signed in."); return; }
     const { data: consult, error: cErr } = appt
       ? await supabase.from("consultations").update(fields).eq("id", appt.id).select("id").single()
-      : await supabase.from("consultations").insert({ patient_id: patient.id, ...fields }).select("id").single();
+      : await supabase.from("consultations").insert({ user_id: userId, patient_id: patient.id, ...fields }).select("id").single();
     if (cErr || !consult) {
       setSaving(false);
       { toast.error(cErr?.message ?? "Could not save consultation."); return; }
     }
     const { error: pErr } = await supabase.from("prescriptions").insert(
       filled.map((r) => ({
+        user_id: userId,
         consultation_id: consult.id,
         drug_name: r.drug,
         dosage_mg: Number(r.dose),
