@@ -3,7 +3,7 @@
 > A pediatric-first, AI-assisted clinical workflow tool for solo and small-practice pediatricians in India. Built as a discovery-package submission for Vardaam Web Solutions — Product Engineer role.
 
 **Live Demo:** https://pedi-care-aide.lovable.app
-**Full PRD:** [Notion Workspace](https://bolder-delphinium-aa0.notion.site/Vardaam_Pediatric_PRD_v1-0509c135fda682ddae02814af033a3d6)
+**Full PRD:** [Notion Workspace](https://bolder-delphinium-aa0.notion.site/PediaCare-PRD-v1-3e59c135fda6806f8592e975424ad569#3e59c135fda68039b76ee58474e38cf6)
 **Walkthrough:** Loom Video *(follow-up submission — Friday 25 Sept)*
 
 ---
