@@ -77,12 +77,12 @@ function ConsultPage() {
   );
   const hasDanger = results.some((r) => r?.level === "danger");
 
-  async function save() {
+  async function save(): Promise<void> {
     if (!patient) return;
     const filled = rows.filter((r) => r.drug);
-    if (!diagnosis.trim()) return toast.error("Please enter a diagnosis.");
-    if (filled.length === 0) return toast.error("Add at least one drug.");
-    if (filled.some((r) => !r.dose || !r.freq)) return toast.error("Each drug needs a dose and frequency.");
+    if (!diagnosis.trim()) { toast.error("Please enter a diagnosis."); return; }
+    if (filled.length === 0) { toast.error("Add at least one drug."); return; }
+    if (filled.some((r) => !r.dose || !r.freq)) { toast.error("Each drug needs a dose and frequency."); return; }
     setSaving(true);
     const { data: consult, error: cErr } = await supabase
       .from("consultations")
@@ -91,7 +91,7 @@ function ConsultPage() {
       .single();
     if (cErr || !consult) {
       setSaving(false);
-      return toast.error(cErr?.message ?? "Could not save consultation.");
+      { toast.error(cErr?.message ?? "Could not save consultation."); return; }
     }
     const { error: pErr } = await supabase.from("prescriptions").insert(
       filled.map((r) => ({
@@ -103,9 +103,10 @@ function ConsultPage() {
       })),
     );
     setSaving(false);
-    if (pErr) return toast.error(pErr.message);
+    if (pErr) { toast.error(pErr.message); return; }
     toast.success("Consultation and prescription saved.");
     navigate({ to: "/prescription/$consultId", params: { consultId: consult.id } });
+    return;
   }
 
   return (
@@ -183,7 +184,7 @@ function ConsultPage() {
                     key={r.key}
                     index={i}
                     row={r}
-                    result={results[i]}
+                    result={results[i] ?? null}
                     canRemove={rows.length > 1}
                     onChange={(p) => update(r.key, p)}
                     onRemove={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
