@@ -27,6 +27,8 @@ export const Route = createFileRoute("/_authenticated/consult/$patientId")({
       { name: "description", content: "Record symptoms, diagnosis and weight-based prescriptions." },
       { property: "og:title", content: "Consultation — PediaCare" },
       { property: "og:description", content: "Record symptoms, diagnosis and weight-based prescriptions." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -104,6 +106,8 @@ function ConsultPage() {
     if (!diagnosis.trim()) { toast.error("Please enter a diagnosis."); return; }
     if (filled.length === 0) { toast.error("Add at least one drug."); return; }
     if (filled.some((r) => !r.dose || !r.freq)) { toast.error("Each drug needs a dose and frequency."); return; }
+    if (filled.some((r) => Number(r.freq) < 1 || Number(r.freq) > 4)) { toast.error("Times per day must be between 1 and 4."); return; }
+    if (filled.some((r) => !r.days || Number(r.days) < 1 || Number(r.days) > 14)) { toast.error("Prescription days must be between 1 and 14."); return; }
     setSaving(true);
     const today = todayISO();
     const fields = {
@@ -302,6 +306,14 @@ function DrugRow({
   const n = index + 1;
   const inFormulary = !row.drug || DRUGS.some((d) => d.name === row.drug);
   const level = result?.level ?? "none";
+  const doseHelpId = `${id}-dose-help`;
+  const frequencyHelpId = `${id}-frequency-help`;
+  const daysHelpId = `${id}-days-help`;
+  const doseHelp = row.drug === "Amoxicillin"
+    ? "Enter dose per single administration — daily total will be computed"
+    : ["Paracetamol", "Ibuprofen", "Azithromycin", "Cetirizine"].includes(row.drug)
+      ? "Enter dose per single administration"
+      : null;
   const Icon = level === "ok" ? CheckCircle2 : level === "warn" ? AlertTriangle : level === "danger" ? XOctagon : Info;
 
   return (
@@ -331,17 +343,20 @@ function DrugRow({
             value={row.dose}
             onChange={(e) => onChange({ dose: e.target.value })}
             aria-label={`Dose in milligrams for drug ${n}`}
-            aria-describedby={allergyWarning ? `${allergyId} ${flagId}` : flagId}
+            aria-describedby={[doseHelp ? doseHelpId : null, allergyWarning ? allergyId : null, flagId].filter(Boolean).join(" ")}
             aria-invalid={level === "danger" || level === "warn"}
           />
+          {doseHelp && <p id={doseHelpId} className="text-xs italic text-muted-foreground">{doseHelp}</p>}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={`${id}-freq`}>Times/day</Label>
-          <Input id={`${id}-freq`} type="number" min={1} max={6} value={row.freq} onChange={(e) => onChange({ freq: e.target.value })} />
+          <Input id={`${id}-freq`} type="number" min={1} max={4} value={row.freq} onChange={(e) => onChange({ freq: e.target.value })} aria-describedby={frequencyHelpId} />
+          <p id={frequencyHelpId} className="text-xs text-muted-foreground">1–4 doses per day (max realistic pediatric frequency)</p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={`${id}-days`}>Days</Label>
-          <Input id={`${id}-days`} type="number" min={1} value={row.days} onChange={(e) => onChange({ days: e.target.value })} />
+          <Input id={`${id}-days`} type="number" min={1} max={14} value={row.days} onChange={(e) => onChange({ days: e.target.value })} aria-describedby={daysHelpId} />
+          <p id={daysHelpId} className="text-xs text-muted-foreground">Standard OPD prescription: 3–7 days. Longer courses (up to 14 days) for specific antibiotics.</p>
         </div>
         <Button type="button" variant="ghost" size="icon" className="min-h-11 min-w-11 justify-self-end sm:col-span-2" disabled={!canRemove} onClick={onRemove} aria-label={`Remove drug ${n}`}>
           <Trash2 className="size-4" aria-hidden="true" />
@@ -472,11 +487,11 @@ function AdvisoryDialog({ open, onOpenChange, followUp }: { open: boolean; onOpe
     `Next follow-up: ${followUp} or sooner if symptoms worsen.`,
   ];
   const hi = [
-    "Paracetamol tabhi dein jab bukhar 38.5°C (101°F) se upar ho. Aspirin NAHI dein.",
-    "Bachche ko paani, ORS, ya maa ka doodh pilate rahein.",
-    "Chetavani ke sanket: 40°C se zyada bukhar, doure, saans lene mein takleef, paani na peena, zyada sustee, chakatte. Turant clinic laayein.",
-    "Adhikansh bukhar viral hote hain aur 2-3 din mein antibiotic ke bina thik ho jaate hain.",
-    `Agla follow-up: ${followUp} ya lakshan bigadne par.`,
+    "पैरासिटामोल तभी दें जब बुखार 38.5°C (101°F) से ऊपर हो। एस्पिरिन नहीं दें।",
+    "बच्चे को पानी, ORS, या माँ का दूध पिलाते रहें।",
+    "चेतावनी के संकेत: 40°C से ज़्यादा बुखार, दौरे, सांस लेने में तकलीफ़, पानी न पीना, ज़्यादा सुस्ती, चकत्ते। तुरंत क्लिनिक लाएं।",
+    "अधिकांश बुखार वायरल होते हैं और 2-3 दिन में एंटीबायोटिक के बिना ठीक हो जाते हैं।",
+    `अगला फ़ॉलो-अप: ${followUp} या लक्षण बिगड़ने पर।`,
   ];
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -490,8 +505,8 @@ function AdvisoryDialog({ open, onOpenChange, followUp }: { open: boolean; onOpe
             <TabsTrigger value="hi">Hindi</TabsTrigger>
             <TabsTrigger value="en">English</TabsTrigger>
           </TabsList>
-          <TabsContent value="hi" lang="hi-Latn">
-            <h3 className="mt-2 font-semibold text-foreground">Aapke Bachche Ke Bukhar Ki Dekhbhaal</h3>
+          <TabsContent value="hi" lang="hi" className="font-devanagari">
+            <h3 className="mt-2 font-semibold text-foreground">आपके बच्चे के बुखार की देखभाल</h3>
             <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-foreground">{hi.map((t) => <li key={t}>{t}</li>)}</ul>
           </TabsContent>
           <TabsContent value="en" lang="en">

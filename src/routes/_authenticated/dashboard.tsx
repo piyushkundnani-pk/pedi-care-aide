@@ -142,13 +142,9 @@ function Dashboard() {
 
   const seed = useMutation({
     mutationFn: loadSampleData,
-    onSuccess: ({ created }) => {
+    onSuccess: () => {
       void queryClient.invalidateQueries();
-      toast.success(
-        created > 0
-          ? `Added ${created} sample patient${created === 1 ? "" : "s"} with today's schedule.`
-          : "Sample data is already up to date for today.",
-      );
+      toast.success("Sample data reset — 5 patients loaded.");
     },
     onError: () => toast.error("Could not load the sample data. Please try again."),
   });
@@ -187,7 +183,7 @@ function Dashboard() {
       ) : (
         <Database className="size-4" aria-hidden="true" />
       )}
-      {seed.isPending ? "Loading sample data…" : "Load Sample Data"}
+      {seed.isPending ? "Resetting sample data…" : "Load Sample Data"}
     </Button>
   );
 
