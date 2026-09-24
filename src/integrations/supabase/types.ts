@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       consultations: {
         Row: {
+          appointment_date: string
           appointment_status: string
           attach_fever_advisory: boolean
           consult_date: string
@@ -27,6 +28,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          appointment_date?: string
           appointment_status?: string
           attach_fever_advisory?: boolean
           consult_date?: string
@@ -38,6 +40,7 @@ export type Database = {
           user_id?: string
         }
         Update: {
+          appointment_date?: string
           appointment_status?: string
           attach_fever_advisory?: boolean
           consult_date?: string
@@ -143,6 +146,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_settings: {
+        Row: {
+          created_at: string
+          has_completed_onboarding: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          has_completed_onboarding?: boolean
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          has_completed_onboarding?: boolean
+          user_id?: string
+        }
+        Relationships: []
       }
       vaccination_records: {
         Row: {

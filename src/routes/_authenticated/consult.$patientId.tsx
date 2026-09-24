@@ -113,8 +113,7 @@ function ConsultPage() {
       .select("id")
       .eq("patient_id", patient.id)
       .in("appointment_status", ["scheduled", "in-progress"])
-      .gte("consult_date", `${today}T00:00:00`)
-      .lte("consult_date", `${today}T23:59:59`)
+      .eq("appointment_date", today)
       .order("consult_date", { ascending: true })
       .limit(1)
       .maybeSingle();
@@ -123,7 +122,7 @@ function ConsultPage() {
     if (!userId) { setSaving(false); toast.error("You must be signed in."); return; }
     const { data: consult, error: cErr } = appt
       ? await supabase.from("consultations").update(fields).eq("id", appt.id).select("id").single()
-      : await supabase.from("consultations").insert({ user_id: userId, patient_id: patient.id, ...fields }).select("id").single();
+      : await supabase.from("consultations").insert({ user_id: userId, patient_id: patient.id, appointment_date: today, ...fields }).select("id").single();
     if (cErr || !consult) {
       setSaving(false);
       { toast.error(cErr?.message ?? "Could not save consultation."); return; }

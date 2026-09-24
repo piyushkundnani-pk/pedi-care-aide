@@ -34,7 +34,8 @@ import {
   formatAge,
   formatToday,
   greeting,
-  hasAnyPatients,
+  runOnboardingIfNeeded,
+  todayBounds,
   mergeSampleData,
   resetDemoData,
   todayISO,
@@ -81,8 +82,7 @@ async function fetchAppointments() {
     .select(
       "id, consult_date, patient_id, appointment_status, patients(id, full_name, date_of_birth, weight_kg, allergies)",
     )
-    .gte("consult_date", `${today}T00:00:00`)
-    .lte("consult_date", `${today}T23:59:59`)
+    .eq("appointment_date", today)
     .order("consult_date", { ascending: true });
   if (error) throw error;
   return (data ?? [])
@@ -122,12 +122,12 @@ async function fetchVaccinations() {
 }
 
 async function fetchPrescriptionCount() {
-  const today = todayISO();
+  const { start, end } = todayBounds();
   const { count, error } = await supabase
     .from("prescriptions")
     .select("id", { count: "exact", head: true })
-    .gte("created_at", `${today}T00:00:00`)
-    .lte("created_at", `${today}T23:59:59`);
+    .gte("created_at", start)
+    .lt("created_at", end);
   if (error) throw error;
   return count ?? 0;
 }
@@ -184,9 +184,12 @@ function Dashboard() {
   useEffect(() => {
     if (autoSeeded.current) return;
     autoSeeded.current = true;
-    hasAnyPatients()
-      .then((has) => {
-        if (!has) seed.mutate();
+    runOnboardingIfNeeded()
+      .then((seeded) => {
+        if (seeded) {
+          void queryClient.invalidateQueries();
+          toast.success("Welcome! 5 sample patients loaded for today.");
+        }
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
