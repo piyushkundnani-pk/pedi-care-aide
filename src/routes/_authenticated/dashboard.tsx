@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CalendarCheck,
   Syringe,
@@ -18,6 +18,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatAge, formatToday, greeting, loadSampleData, todayISO } from "@/lib/pediacare";
+import { consultPatientQueryOptions } from "@/lib/patient-query";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -263,21 +264,7 @@ function Dashboard() {
                         {formatAge(patient.date_of_birth)} · {patient.weight_kg} kg
                       </p>
                     </div>
-                    <Button asChild size="sm" className="shrink-0">
-                      <Link
-                        to="/consult/$patientId"
-                        params={{ patientId: patient.id }}
-                        onClick={() => {
-                          const w = window as unknown as { __consultTimer?: boolean };
-                          if (w.__consultTimer) console.timeEnd("dashboard-to-consult");
-                          console.time("dashboard-to-consult");
-                          w.__consultTimer = true;
-                        }}
-                        aria-label={`Start consultation for ${patient.full_name}`}
-                      >
-                        Start Consult
-                      </Link>
-                    </Button>
+                    <StartConsultLink patient={patient} queryClient={queryClient} />
                   </li>
                 ))}
               </ul>
@@ -383,6 +370,49 @@ function Dashboard() {
         )}
       </main>
     </div>
+  );
+}
+
+function StartConsultLink({ patient, queryClient }: { patient: PatientRow; queryClient: ReturnType<typeof useQueryClient> }) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const schedulePrefetch = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      void queryClient.prefetchQuery(consultPatientQueryOptions(patient.id));
+      timerRef.current = null;
+    }, 200);
+  };
+
+  const cancelPrefetch = () => {
+    if (!timerRef.current) return;
+    clearTimeout(timerRef.current);
+    timerRef.current = null;
+  };
+
+  useEffect(() => cancelPrefetch, []);
+
+  return (
+    <Button asChild size="sm" className="shrink-0">
+      <Link
+        to="/consult/$patientId"
+        params={{ patientId: patient.id }}
+        onMouseEnter={schedulePrefetch}
+        onMouseLeave={cancelPrefetch}
+        onFocus={schedulePrefetch}
+        onBlur={cancelPrefetch}
+        onClick={() => {
+          cancelPrefetch();
+          const w = window as unknown as { __consultTimer?: boolean };
+          if (w.__consultTimer) console.timeEnd("dashboard-to-consult");
+          console.time("dashboard-to-consult");
+          w.__consultTimer = true;
+        }}
+        aria-label={`Start consultation for ${patient.full_name}`}
+      >
+        Start Consult
+      </Link>
+    </Button>
   );
 }
 
