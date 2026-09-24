@@ -24,6 +24,7 @@ export type Database = {
           id: string
           patient_id: string
           symptoms: string | null
+          user_id: string
         }
         Insert: {
           appointment_status?: string
@@ -34,6 +35,7 @@ export type Database = {
           id?: string
           patient_id: string
           symptoms?: string | null
+          user_id?: string
         }
         Update: {
           appointment_status?: string
@@ -44,6 +46,7 @@ export type Database = {
           id?: string
           patient_id?: string
           symptoms?: string | null
+          user_id?: string
         }
         Relationships: [
           {
@@ -65,7 +68,7 @@ export type Database = {
           id: string
           parent_name: string | null
           parent_phone: string | null
-          user_id: string | null
+          user_id: string
           weight_kg: number
         }
         Insert: {
@@ -77,7 +80,7 @@ export type Database = {
           id?: string
           parent_name?: string | null
           parent_phone?: string | null
-          user_id?: string | null
+          user_id?: string
           weight_kg: number
         }
         Update: {
@@ -89,7 +92,7 @@ export type Database = {
           id?: string
           parent_name?: string | null
           parent_phone?: string | null
-          user_id?: string | null
+          user_id?: string
           weight_kg?: number
         }
         Relationships: []
@@ -103,6 +106,7 @@ export type Database = {
           duration_days: number | null
           frequency_per_day: number | null
           id: string
+          user_id: string
           whatsapp_read_at: string | null
           whatsapp_sent_at: string | null
         }
@@ -114,6 +118,7 @@ export type Database = {
           duration_days?: number | null
           frequency_per_day?: number | null
           id?: string
+          user_id?: string
           whatsapp_read_at?: string | null
           whatsapp_sent_at?: string | null
         }
@@ -125,6 +130,7 @@ export type Database = {
           duration_days?: number | null
           frequency_per_day?: number | null
           id?: string
+          user_id?: string
           whatsapp_read_at?: string | null
           whatsapp_sent_at?: string | null
         }
@@ -147,6 +153,7 @@ export type Database = {
           reminder_sent_at: string | null
           scheduled_date: string
           status: string
+          user_id: string
           vaccine_name: string
         }
         Insert: {
@@ -157,6 +164,7 @@ export type Database = {
           reminder_sent_at?: string | null
           scheduled_date: string
           status?: string
+          user_id?: string
           vaccine_name: string
         }
         Update: {
@@ -167,6 +175,7 @@ export type Database = {
           reminder_sent_at?: string | null
           scheduled_date?: string
           status?: string
+          user_id?: string
           vaccine_name?: string
         }
         Relationships: [
