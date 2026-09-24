@@ -153,6 +153,7 @@ Target price: **₹10,000–15,000/doctor/year** (approximately 1.6× PediaNex),
 - **Auth is real.** Google Sign-In via Supabase Auth. Session persistence across page loads.
 - **Data is real.** Every action writes to Postgres. Refresh, sign out, sign in — state persists.
 - **Vaccination history is user-captured, not assumed.** Walk-in registration asks the doctor to confirm or list prior vaccinations, so new patients aren't misrepresented as neglected.
+- **Multi-tenancy via user_id + RLS.** Every clinical row is scoped to the authenticated doctor. Standard Supabase pattern: `user_id UUID REFERENCES auth.users(id)` + RLS policy `WHERE user_id = auth.uid()`.
 
 ---
 
@@ -185,6 +186,9 @@ Transparency matters. Here's exactly what's real functionality versus what's sim
 - Real-time dose safety recalculation on every keystroke
 - Route-level prefetch on hover (Dashboard → Consultation transition latency reduced from ~2600ms cold to ~400ms warm)
 - Idempotent seeder with "Reset Demo Data" (destructive with confirmation) and "Load Sample Data" (additive merge preserving user progress) buttons
+- - **Multi-tenant architecture with Row Level Security.** Every application table (patients, consultations, prescriptions, vaccination_records, appointments) has a `user_id` foreign key to `auth.users`, enforced by Supabase RLS policies. Each signed-in doctor sees only their own data. Sign in with a different Google account and you get a completely isolated patient pool.
+- **First-visit onboarding via `user_settings` table.** A flag persists whether a user has completed initial sample-data load, so subsequent sign-ins never re-trigger auto-load — even if the user has manually cleared their data.
+- **Timezone-aware date handling.** Today's appointments and vaccinations use user's local (IST) date for comparisons, not UTC — fixes the "seeded at 1 AM IST but stored as yesterday UTC" edge case.
 
 ### Mocked (with clear disclosure in the UI)
 - **WhatsApp delivery**: send action UPDATEs `whatsapp_sent_at` in DB (real audit trail) but no actual WhatsApp message is sent. In production this integrates the WhatsApp Business API. Every mock is labeled clearly in the UI.
