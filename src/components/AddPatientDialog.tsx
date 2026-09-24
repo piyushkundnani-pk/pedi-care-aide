@@ -89,7 +89,7 @@ export function AddPatientDialog({ disabled }: { disabled?: boolean }) {
           .slice(0, 20),
       }, allVax ? "all" : pickedValid),
     onSuccess: () => {
-      toast.success(`Patient ${form.name.trim()} registered. Added to Today's Appointments.`);
+      toast.success(`${form.name.trim()} registered and added to today's OPD queue.`);
       void queryClient.invalidateQueries();
       onOpenChange(false);
     },
@@ -118,8 +118,10 @@ export function AddPatientDialog({ disabled }: { disabled?: boolean }) {
       </DialogTrigger>
       <DialogContent className="flex h-dvh max-h-dvh w-full max-w-full flex-col overflow-y-auto rounded-none sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-lg">
         <DialogHeader>
-          <DialogTitle>Register New Patient</DialogTitle>
-          <DialogDescription>Fields marked * are required.</DialogDescription>
+          <DialogTitle>Register Walk-in Patient</DialogTitle>
+          <DialogDescription>
+            The patient will be added to today's OPD queue immediately. For pre-scheduled patients or record migration, see Phase 2 roadmap.
+          </DialogDescription>
         </DialogHeader>
         <form
           className="flex flex-col gap-4"
@@ -216,7 +218,7 @@ export function AddPatientDialog({ disabled }: { disabled?: boolean }) {
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button type="submit" disabled={!valid || register.isPending} className="gap-2">
               {register.isPending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-              Register Patient
+              Register &amp; Add to Today's Queue
             </Button>
           </DialogFooter>
         </form>
