@@ -209,6 +209,7 @@ Being explicit about what's out of MVP scope:
 - Latency in the dev preview environment is ~400ms warm (down from ~2600ms cold on first navigation via prefetching); production would target under 300ms via CDN and warm caches
 - Single-clinic support; multi-doctor and multi-clinic support is Phase 3
 - Add Patient supports walk-in registration only; pre-scheduled and future-dated appointments are Phase 2
+- **Mobile Safari OAuth constraint.** Sign-in with Google works on desktop browsers and on Android Chrome. iOS Safari (and some other mobile browsers with strict third-party cookie policies) currently fail with a "State verification failed" error because Lovable's shared OAuth flow relies on cross-domain cookies that Safari restricts. The fix requires a dedicated Google Cloud OAuth project registered against an owned domain — a Phase 2 cleanup item. Multi-tenancy and all other functionality work correctly across all supported browsers.
 
 ### Deliberately deferred to Phase 2 (product design choice, not oversight)
 
