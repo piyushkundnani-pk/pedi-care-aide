@@ -74,7 +74,7 @@ Solo pediatricians in India see 30–40 children per day in OPD but rely on tool
 
 This leads to cognitive overload during consult, illegible handwritten prescriptions, manual vaccination tracking, and defensive prescribing under parent pressure — compromising both clinical quality and practice viability.
 
-*Full market analysis and evidence base in the [Notion PRD](https://bolder-delphinium-aa0.notion.site/Vardaam_Pediatric_PRD_v1-0509c135fda682ddae02814af033a3d6).*
+*Full market analysis and evidence base in the [Notion PRD](https://bolder-delphinium-aa0.notion.site/PediaCare-PRD-v1-3e59c135fda6806f8592e975424ad569).*
 
 ---
 
