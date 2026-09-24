@@ -405,8 +405,8 @@ function EmptyState({
   action,
 }: {
   message: string;
-  hint?: string;
-  action?: React.ReactNode;
+  hint?: string | undefined;
+  action?: React.ReactNode | undefined;
 }) {
   return (
     <div className="py-8 text-center">
