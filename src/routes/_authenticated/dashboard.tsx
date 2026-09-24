@@ -40,6 +40,7 @@ import {
 } from "@/lib/pediacare";
 import { consultPatientQueryOptions } from "@/lib/patient-query";
 import { doctorDisplayName } from "@/lib/doctor-name";
+import { AddPatientDialog } from "@/components/AddPatientDialog";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -267,6 +268,7 @@ function Dashboard() {
         </AlertDialogContent>
       </AlertDialog>
       {seedButton}
+      <AddPatientDialog disabled={busy} />
     </div>
   );
 
