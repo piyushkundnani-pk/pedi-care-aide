@@ -303,7 +303,8 @@ function DrugRow({
   const flagId = `${id}-flag`;
   const allergyId = `${id}-allergy`;
   const n = index + 1;
-  const inFormulary = !row.drug || DRUGS.some((d) => d.name === row.drug);
+  const normalizedDrug = row.drug.trim().toLocaleLowerCase();
+  const inFormulary = !row.drug || DRUGS.some((d) => d.name.toLocaleLowerCase() === normalizedDrug);
   const level = result?.level ?? "none";
   const doseHelpId = `${id}-dose-help`;
   const frequencyHelpId = `${id}-frequency-help`;
@@ -326,7 +327,7 @@ function DrugRow({
             n={n}
             value={row.drug}
             onChange={(v) => {
-              const d = DRUGS.find((x) => x.name === v);
+              const d = DRUGS.find((x) => x.name.toLocaleLowerCase() === v.trim().toLocaleLowerCase());
               onChange({ drug: v, freq: row.freq || (d ? String(d.defaultFreq) : "") });
             }}
           />
@@ -454,7 +455,12 @@ function DrugCombobox({ id, n, value, onChange }: { id: string; n: number; value
         autoComplete="off"
         placeholder="Search generic or brand…"
         value={text}
-        onChange={(e) => { setText(e.target.value); setOpen(true); setActive(0); }}
+        onChange={(e) => {
+          setText(e.target.value);
+          onChange(e.target.value);
+          setOpen(true);
+          setActive(0);
+        }}
         onFocus={() => setOpen(true)}
         onBlur={() => { setOpen(false); commit(text); }}
         onKeyDown={(e) => {

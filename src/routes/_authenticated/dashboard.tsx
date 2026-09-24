@@ -39,6 +39,7 @@ import {
   todayISO,
 } from "@/lib/pediacare";
 import { consultPatientQueryOptions } from "@/lib/patient-query";
+import { doctorDisplayName } from "@/lib/doctor-name";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -129,14 +130,8 @@ async function fetchPrescriptionCount() {
 
 function Dashboard() {
   const queryClient = useQueryClient();
-  const [doctorName, setDoctorName] = useState("Dr. Priya");
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      const name = data.user?.user_metadata?.["full_name"] as string | undefined;
-      if (name) setDoctorName(name.startsWith("Dr") ? name : `Dr. ${name.split(" ")[0]}`);
-    });
-  }, []);
+  const { user } = Route.useRouteContext();
+  const doctorName = doctorDisplayName(user);
 
   const appointments = useQuery({
     queryKey: ["appointments", todayISO()],

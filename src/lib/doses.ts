@@ -15,9 +15,6 @@ export const DRUGS: DrugRef[] = [
   { name: "Amoxicillin", minMgPerKg: 12.5, maxMgPerKg: 30, maxSingleMg: 1000, defaultFreq: 3, allergyKeys: ["penicillin", "amoxicillin"], brands: ["Novamox", "Mox", "Amoxil"] },
   { name: "Azithromycin", minMgPerKg: 5, maxMgPerKg: 10, maxSingleMg: 500, defaultFreq: 1, allergyKeys: ["azithromycin", "macrolide"], brands: ["Azithral", "Zithromax", "Azee"] },
   { name: "Cetirizine", minMgPerKg: 0.125, maxMgPerKg: 0.25, maxSingleMg: 10, defaultFreq: 1, allergyKeys: ["cetirizine"], brands: ["Alerid", "Cetzine", "Zyrtec"] },
-  { name: "Ondansetron", minMgPerKg: 0.1, maxMgPerKg: 0.15, maxSingleMg: 4, defaultFreq: 3, allergyKeys: ["ondansetron"] },
-  { name: "Salbutamol (oral)", minMgPerKg: 0.1, maxMgPerKg: 0.15, maxSingleMg: 4, defaultFreq: 3, allergyKeys: ["salbutamol"] },
-  { name: "ORS + Zinc (Zinc)", minMgPerKg: 1, maxMgPerKg: 2, maxSingleMg: 20, defaultFreq: 1, allergyKeys: ["zinc"] },
 ];
 
 export type SafetyResult = {
@@ -31,10 +28,13 @@ export function checkDose(
   doseMg: number | null,
   weightKg: number,
 ): SafetyResult {
-  const drug = DRUGS.find((d) => d.name === drugName);
+  const normalizedName = drugName.trim().toLocaleLowerCase();
+  const drug = DRUGS.find((d) => d.name.toLocaleLowerCase() === normalizedName);
   if (!drug) return { level: "none", message: "Select a drug to check dose." };
-  const min = Math.round(drug.minMgPerKg * weightKg * 10) / 10;
-  const max = Math.min(Math.round(drug.maxMgPerKg * weightKg * 10) / 10, drug.maxSingleMg);
+  const calculatedMin = Math.round(drug.minMgPerKg * weightKg * 10) / 10;
+  const cappedMax = Math.min(Math.round(drug.maxMgPerKg * weightKg * 10) / 10, drug.maxSingleMg);
+  const min = Math.min(calculatedMin, cappedMax);
+  const max = Math.max(min, cappedMax);
   const range = { min, max };
   if (doseMg == null || Number.isNaN(doseMg))
     return { level: "none", message: `Safe range: ${min}–${max} mg per dose.`, range };
@@ -44,7 +44,7 @@ export function checkDose(
     return { level: "warn", message: `Above range: max ${max} mg per dose.`, range };
   if (doseMg < min)
     return { level: "warn", message: `Below range: min ${min} mg per dose (may be sub-therapeutic).`, range };
-  return { level: "ok", message: `Within safe range (${min}–${max} mg).`, range };
+  return { level: "ok", message: `Within safe range: ${min}–${max} mg per dose.`, range };
 }
 
 export function getAllergyWarning(drugName: string, allergies: string[]): string | null {
