@@ -1,7 +1,7 @@
 /** Age-adapted fever advisory content shared by the consult preview and the WhatsApp preview. */
 
 export type AdvisoryPatient = { full_name: string; date_of_birth: string; weight_kg: number } | null;
-export type AdvisoryItem = { lead?: string; text: string };
+export type AdvisoryItem = { lead?: string | undefined; text: string };
 export type AdvisoryBand = "infant" | "toddler" | "standard";
 
 export function ageParts(dob: string): { years: number; months: number; total: number } {

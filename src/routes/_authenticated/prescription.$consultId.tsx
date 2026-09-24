@@ -71,8 +71,8 @@ function PrescriptionPage() {
   const readTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const rx = q.data?.prescriptions ?? [];
-  const sentAt = rx.length > 0 && rx.every((r) => r.whatsapp_sent_at) ? rx[0].whatsapp_sent_at : null;
-  const readAt = rx.length > 0 && rx.every((r) => r.whatsapp_read_at) ? rx[0].whatsapp_read_at : null;
+  const sentAt = rx.length > 0 && rx.every((r) => r.whatsapp_sent_at) ? rx[0]?.whatsapp_sent_at ?? null : null;
+  const readAt = rx.length > 0 && rx.every((r) => r.whatsapp_read_at) ? rx[0]?.whatsapp_read_at ?? null : null;
 
   async function markRead() {
     const { error } = await supabase
