@@ -1,9 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useId, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Info, Plus, Trash2, XOctagon } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import type { Tables } from "@/integrations/supabase/types";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import { formatAge } from "@/lib/pediacare";
 import { DRUGS, DOSE_RULES_VERSION, checkDose, drugLabel, getAllergyWarning, type SafetyResult } from "@/lib/doses";
 import { todayISO } from "@/lib/pediacare";
 import { cn } from "@/lib/utils";
+import { consultPatientQueryOptions } from "@/lib/patient-query";
 
 export const Route = createFileRoute("/_authenticated/consult/$patientId")({
   head: () => ({
@@ -41,9 +42,8 @@ const newRow = (): Row => ({ key: crypto.randomUUID(), drug: "", dose: "", freq:
 function ConsultPage() {
   const { patientId } = Route.useParams();
   const navigate = useNavigate();
-  const [patient, setPatient] = useState<Tables<"patients"> | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const patientQuery = useQuery(consultPatientQueryOptions(patientId));
+  const patient = patientQuery.data?.patient ?? null;
   const [symptoms, setSymptoms] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
   const [rows, setRows] = useState<Row[]>([newRow()]);
@@ -61,30 +61,8 @@ function ConsultPage() {
   }, []);
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      setLoading(true);
-      const { data, error } = await supabase.from("patients").select("*").eq("id", patientId).maybeSingle();
-      if (!active) return;
-      if (error) setError(error.message);
-      else if (!data) setError("Patient not found.");
-      else {
-        setPatient(data);
-        const { data: c } = await supabase
-          .from("consultations")
-          .select("symptoms")
-          .eq("patient_id", patientId)
-          .order("consult_date", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (active && c?.symptoms) setSymptoms(c.symptoms);
-      }
-      setLoading(false);
-    })();
-    return () => {
-      active = false;
-    };
-  }, [patientId]);
+    if (patientQuery.data?.symptoms) setSymptoms(patientQuery.data.symptoms);
+  }, [patientQuery.data?.symptoms]);
 
   const maxDays = Math.max(0, ...rows.map((r) => Number(r.days) || 0));
   const followUp = new Date();
@@ -160,17 +138,21 @@ function ConsultPage() {
           </Link>
         </Button>
 
-        {loading ? (
-          <div role="status" aria-label="Loading patient" className="space-y-6">
-            <Skeleton className="h-36 w-full rounded-xl" />
-            <div className="grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-              <Skeleton className="h-80 rounded-xl" />
-              <Skeleton className="h-80 rounded-xl" />
+        {patientQuery.isPending ? (
+          <div role="status" aria-label="Loading consultation" className="animate-pulse space-y-6">
+            <Skeleton className="h-[120px] w-full rounded-lg" />
+            <div className="grid items-start gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+              <Skeleton className="h-[360px] rounded-lg" aria-label="Loading drug entry form" />
+              <div className="space-y-5 rounded-lg border border-border bg-card p-6">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-28 w-full rounded-md" aria-label="Loading symptoms field" />
+                <Skeleton className="h-28 w-full rounded-md" aria-label="Loading diagnosis field" />
+              </div>
             </div>
             <span className="sr-only">Loading patient…</span>
           </div>
-        ) : error || !patient ? (
-          <p role="alert" className="text-destructive">{error}</p>
+        ) : patientQuery.error || !patient ? (
+          <p role="alert" className="text-destructive">{patientQuery.error?.message ?? "Patient not found."}</p>
         ) : (
           <form
             onSubmit={(e) => {
