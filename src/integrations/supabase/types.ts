@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       consultations: {
         Row: {
+          appointment_status: string
           attach_fever_advisory: boolean
           consult_date: string
           created_at: string
@@ -25,6 +26,7 @@ export type Database = {
           symptoms: string | null
         }
         Insert: {
+          appointment_status?: string
           attach_fever_advisory?: boolean
           consult_date?: string
           created_at?: string
@@ -34,6 +36,7 @@ export type Database = {
           symptoms?: string | null
         }
         Update: {
+          appointment_status?: string
           attach_fever_advisory?: boolean
           consult_date?: string
           created_at?: string

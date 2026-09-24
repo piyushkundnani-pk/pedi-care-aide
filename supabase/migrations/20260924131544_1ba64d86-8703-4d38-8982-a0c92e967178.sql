@@ -1,0 +1,1 @@
+ALTER TABLE public.consultations ADD COLUMN appointment_status text NOT NULL DEFAULT 'scheduled' CHECK (appointment_status IN ('scheduled','in-progress','completed'));

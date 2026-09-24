@@ -6,14 +6,15 @@ export type DrugRef = {
   maxSingleMg: number;
   defaultFreq: number;
   allergyKeys: string[];
+  brands?: string[];
 };
 
 export const DRUGS: DrugRef[] = [
-  { name: "Paracetamol", minMgPerKg: 10, maxMgPerKg: 15, maxSingleMg: 1000, defaultFreq: 4, allergyKeys: ["paracetamol"] },
-  { name: "Ibuprofen", minMgPerKg: 5, maxMgPerKg: 10, maxSingleMg: 400, defaultFreq: 3, allergyKeys: ["ibuprofen", "nsaid"] },
-  { name: "Amoxicillin", minMgPerKg: 12.5, maxMgPerKg: 30, maxSingleMg: 1000, defaultFreq: 3, allergyKeys: ["penicillin", "amoxicillin"] },
-  { name: "Azithromycin", minMgPerKg: 5, maxMgPerKg: 10, maxSingleMg: 500, defaultFreq: 1, allergyKeys: ["azithromycin", "macrolide"] },
-  { name: "Cetirizine", minMgPerKg: 0.125, maxMgPerKg: 0.25, maxSingleMg: 10, defaultFreq: 1, allergyKeys: ["cetirizine"] },
+  { name: "Paracetamol", minMgPerKg: 10, maxMgPerKg: 15, maxSingleMg: 1000, defaultFreq: 4, allergyKeys: ["paracetamol"], brands: ["Crocin", "Calpol", "Metacin"] },
+  { name: "Ibuprofen", minMgPerKg: 5, maxMgPerKg: 10, maxSingleMg: 400, defaultFreq: 3, allergyKeys: ["ibuprofen", "nsaid"], brands: ["Combiflam", "Brufen", "Ibugesic"] },
+  { name: "Amoxicillin", minMgPerKg: 12.5, maxMgPerKg: 30, maxSingleMg: 1000, defaultFreq: 3, allergyKeys: ["penicillin", "amoxicillin"], brands: ["Novamox", "Mox", "Amoxil"] },
+  { name: "Azithromycin", minMgPerKg: 5, maxMgPerKg: 10, maxSingleMg: 500, defaultFreq: 1, allergyKeys: ["azithromycin", "macrolide"], brands: ["Azithral", "Zithromax", "Azee"] },
+  { name: "Cetirizine", minMgPerKg: 0.125, maxMgPerKg: 0.25, maxSingleMg: 10, defaultFreq: 1, allergyKeys: ["cetirizine"], brands: ["Alerid", "Cetzine", "Zyrtec"] },
   { name: "Ondansetron", minMgPerKg: 0.1, maxMgPerKg: 0.15, maxSingleMg: 4, defaultFreq: 3, allergyKeys: ["ondansetron"] },
   { name: "Salbutamol (oral)", minMgPerKg: 0.1, maxMgPerKg: 0.15, maxSingleMg: 4, defaultFreq: 3, allergyKeys: ["salbutamol"] },
   { name: "ORS + Zinc (Zinc)", minMgPerKg: 1, maxMgPerKg: 2, maxSingleMg: 20, defaultFreq: 1, allergyKeys: ["zinc"] },
@@ -59,3 +60,6 @@ export function getAllergyWarning(drugName: string, allergies: string[]): string
 
   return null;
 }
+
+export const DOSE_RULES_VERSION = "IAP STG 2025 v1.0";
+export const drugLabel = (d: DrugRef) => (d.brands?.length ? `${d.name} (${d.brands.join(", ")})` : d.name);

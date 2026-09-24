@@ -12,9 +12,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatAge } from "@/lib/pediacare";
-import { DRUGS, checkDose, getAllergyWarning, type SafetyResult } from "@/lib/doses";
+import { DRUGS, DOSE_RULES_VERSION, checkDose, drugLabel, getAllergyWarning, type SafetyResult } from "@/lib/doses";
+import { todayISO } from "@/lib/pediacare";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/consult/$patientId")({
@@ -42,8 +45,18 @@ function ConsultPage() {
   const [symptoms, setSymptoms] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
   const [rows, setRows] = useState<Row[]>([newRow()]);
-  const [attachFeverAdvisory, setAttachFeverAdvisory] = useState(false);
+  const [feverOverride, setFeverOverride] = useState<boolean | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const attachFeverAdvisory = feverOverride ?? /fever/i.test(diagnosis);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const w = window as unknown as { __consultTimer?: boolean };
+    if (w.__consultTimer) {
+      console.timeEnd("dashboard-to-consult");
+      w.__consultTimer = false;
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -71,9 +84,10 @@ function ConsultPage() {
     };
   }, [patientId]);
 
-  useEffect(() => {
-    if (/fever/i.test(diagnosis)) setAttachFeverAdvisory(true);
-  }, [diagnosis]);
+  const maxDays = Math.max(0, ...rows.map((r) => Number(r.days) || 0));
+  const followUp = new Date();
+  followUp.setDate(followUp.getDate() + maxDays);
+  const followUpText = followUp.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
 
   const update = (key: string, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -91,16 +105,26 @@ function ConsultPage() {
     if (filled.length === 0) { toast.error("Add at least one drug."); return; }
     if (filled.some((r) => !r.dose || !r.freq)) { toast.error("Each drug needs a dose and frequency."); return; }
     setSaving(true);
-    const { data: consult, error: cErr } = await supabase
+    const today = todayISO();
+    const fields = {
+      symptoms: symptoms || null,
+      diagnosis,
+      attach_fever_advisory: attachFeverAdvisory,
+      appointment_status: "completed",
+    };
+    const { data: appt } = await supabase
       .from("consultations")
-      .insert({
-        patient_id: patient.id,
-        symptoms: symptoms || null,
-        diagnosis,
-        attach_fever_advisory: attachFeverAdvisory,
-      })
       .select("id")
-      .single();
+      .eq("patient_id", patient.id)
+      .in("appointment_status", ["scheduled", "in-progress"])
+      .gte("consult_date", `${today}T00:00:00`)
+      .lte("consult_date", `${today}T23:59:59`)
+      .order("consult_date", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    const { data: consult, error: cErr } = appt
+      ? await supabase.from("consultations").update(fields).eq("id", appt.id).select("id").single()
+      : await supabase.from("consultations").insert({ patient_id: patient.id, ...fields }).select("id").single();
     if (cErr || !consult) {
       setSaving(false);
       { toast.error(cErr?.message ?? "Could not save consultation."); return; }
@@ -133,7 +157,14 @@ function ConsultPage() {
         </Button>
 
         {loading ? (
-          <p role="status" className="text-muted-foreground">Loading patient…</p>
+          <div role="status" aria-label="Loading patient" className="space-y-6">
+            <Skeleton className="h-36 w-full rounded-xl" />
+            <div className="grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+              <Skeleton className="h-80 rounded-xl" />
+              <Skeleton className="h-80 rounded-xl" />
+            </div>
+            <span className="sr-only">Loading patient…</span>
+          </div>
         ) : error || !patient ? (
           <p role="alert" className="text-destructive">{error}</p>
         ) : (
@@ -194,7 +225,7 @@ function ConsultPage() {
                   <Checkbox
                     id="attach-fever-advisory"
                     checked={attachFeverAdvisory}
-                    onCheckedChange={(checked) => setAttachFeverAdvisory(checked === true)}
+                    onCheckedChange={(checked) => setFeverOverride(checked === true)}
                     aria-describedby="fever-advisory-description"
                     className="size-5"
                   />
@@ -205,6 +236,13 @@ function ConsultPage() {
                     <p id="fever-advisory-description" className="text-xs text-muted-foreground">
                       Automatically selected when the diagnosis mentions fever.
                     </p>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewOpen(true)}
+                      className="mt-1 min-h-6 text-sm font-medium text-primary underline underline-offset-2"
+                    >
+                      Preview advisory sheet
+                    </button>
                   </div>
                 </div>
               </CardContent>
@@ -219,7 +257,7 @@ function ConsultPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="diagnosis">Diagnosis <span aria-hidden="true">*</span></Label>
-                  <Textarea id="diagnosis" rows={5} required aria-required="true" value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} />
+                  <Textarea id="diagnosis" rows={5} required aria-required="true" value={diagnosis} onChange={(e) => { setDiagnosis(e.target.value); setFeverOverride(null); }} />
                 </div>
               </CardContent>
             </Card>
@@ -237,6 +275,7 @@ function ConsultPage() {
             </div>
           </form>
         )}
+        <AdvisoryDialog open={previewOpen} onOpenChange={setPreviewOpen} followUp={followUpText} />
       </main>
     </div>
   );
@@ -261,6 +300,7 @@ function DrugRow({
   const flagId = `${id}-flag`;
   const allergyId = `${id}-allergy`;
   const n = index + 1;
+  const inFormulary = !row.drug || DRUGS.some((d) => d.name === row.drug);
   const level = result?.level ?? "none";
   const Icon = level === "ok" ? CheckCircle2 : level === "warn" ? AlertTriangle : level === "danger" ? XOctagon : Info;
 
@@ -270,22 +310,15 @@ function DrugRow({
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5 sm:col-span-2">
           <Label htmlFor={`${id}-drug`}>Drug</Label>
-          <Select
+          <DrugCombobox
+            id={`${id}-drug`}
+            n={n}
             value={row.drug}
-            onValueChange={(v) => {
+            onChange={(v) => {
               const d = DRUGS.find((x) => x.name === v);
-              onChange({ drug: v, freq: row.freq || String(d?.defaultFreq ?? "") });
+              onChange({ drug: v, freq: row.freq || (d ? String(d.defaultFreq) : "") });
             }}
-          >
-            <SelectTrigger id={`${id}-drug`} aria-label={`Select drug ${n}`}>
-              <SelectValue placeholder="Choose a drug" />
-            </SelectTrigger>
-            <SelectContent>
-              {DRUGS.map((d) => (
-                <SelectItem key={d.name} value={d.name}>{d.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={`${id}-dose`}>Dose (mg)</Label>
@@ -325,6 +358,18 @@ function DrugRow({
           <span>{allergyWarning}</span>
         </div>
       )}
+      {!inFormulary ? (
+        <div
+          id={flagId}
+          role="status"
+          aria-live="polite"
+          aria-label={`Dose safety check for drug ${n}`}
+          className="mt-3 flex items-start gap-2 rounded-md border border-border bg-muted px-3 py-2 text-sm font-medium text-foreground"
+        >
+          <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <span>Drug not in verified formulary. Dose safety check unavailable — please verify manually against IAP guidelines.</span>
+        </div>
+      ) : (
       <div
         id={flagId}
         role="status"
@@ -344,6 +389,117 @@ function DrugRow({
           {result?.message ?? "Select a drug to check dose."}
         </span>
       </div>
+      )}
+      <p className="mt-1.5 text-xs text-muted-foreground">Rules: {DOSE_RULES_VERSION}</p>
     </fieldset>
+  );
+}
+
+function DrugCombobox({ id, n, value, onChange }: { id: string; n: number; value: string; onChange: (v: string) => void }) {
+  const known = DRUGS.find((d) => d.name === value);
+  const [text, setText] = useState(known ? drugLabel(known) : value);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const listId = `${id}-list`;
+  const q = text.trim().toLowerCase();
+  const options = DRUGS.filter((d) => !q || drugLabel(d).toLowerCase().includes(q));
+
+  const commit = (v: string) => {
+    const match = DRUGS.find((d) => d.name.toLowerCase() === v.trim().toLowerCase() || drugLabel(d).toLowerCase() === v.trim().toLowerCase());
+    if (match) { setText(drugLabel(match)); onChange(match.name); }
+    else onChange(v.trim());
+  };
+  const pick = (i: number) => {
+    const d = options[i];
+    if (!d) return;
+    setText(drugLabel(d));
+    onChange(d.name);
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        role="combobox"
+        aria-label={`Drug ${n}: search or type a drug name`}
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-autocomplete="list"
+        aria-activedescendant={open && options[active] ? `${listId}-${active}` : undefined}
+        autoComplete="off"
+        placeholder="Search generic or brand…"
+        value={text}
+        onChange={(e) => { setText(e.target.value); setOpen(true); setActive(0); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => { setOpen(false); commit(text); }}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown") { e.preventDefault(); setOpen(true); setActive((a) => Math.min(a + 1, options.length - 1)); }
+          else if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); }
+          else if (e.key === "Enter") {
+            e.preventDefault();
+            if (open && options[active]) pick(active); else { commit(text); setOpen(false); }
+          } else if (e.key === "Escape") setOpen(false);
+        }}
+      />
+      {open && options.length > 0 && (
+        <ul id={listId} role="listbox" aria-label={`Drug options for drug ${n}`} className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover py-1 text-sm text-popover-foreground shadow-md">
+          {options.map((d, i) => (
+            <li
+              key={d.name}
+              id={`${listId}-${i}`}
+              role="option"
+              aria-selected={i === active}
+              onMouseDown={(e) => { e.preventDefault(); pick(i); }}
+              onMouseEnter={() => setActive(i)}
+              className={cn("cursor-pointer px-3 py-2", i === active && "bg-accent text-accent-foreground")}
+            >
+              {drugLabel(d)}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function AdvisoryDialog({ open, onOpenChange, followUp }: { open: boolean; onOpenChange: (o: boolean) => void; followUp: string }) {
+  const en = [
+    "Give paracetamol only if fever is above 38.5°C (101°F). Do NOT give aspirin.",
+    "Keep child hydrated with water, ORS, or breast milk.",
+    "Watch for warning signs: fever above 40°C, seizures, difficulty breathing, unable to drink, unusually drowsy, rash. Bring child back immediately if any occur.",
+    "Most fevers are viral and resolve in 2-3 days without antibiotics.",
+    `Next follow-up: ${followUp} or sooner if symptoms worsen.`,
+  ];
+  const hi = [
+    "Paracetamol tabhi dein jab bukhar 38.5°C (101°F) se upar ho. Aspirin NAHI dein.",
+    "Bachche ko paani, ORS, ya maa ka doodh pilate rahein.",
+    "Chetavani ke sanket: 40°C se zyada bukhar, doure, saans lene mein takleef, paani na peena, zyada sustee, chakatte. Turant clinic laayein.",
+    "Adhikansh bukhar viral hote hain aur 2-3 din mein antibiotic ke bina thik ho jaate hain.",
+    `Agla follow-up: ${followUp} ya lakshan bigadne par.`,
+  ];
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Fever advisory sheet</DialogTitle>
+          <DialogDescription>This is sent to the parent on WhatsApp with the prescription.</DialogDescription>
+        </DialogHeader>
+        <Tabs defaultValue="hi">
+          <TabsList aria-label="Advisory language">
+            <TabsTrigger value="hi">Hindi</TabsTrigger>
+            <TabsTrigger value="en">English</TabsTrigger>
+          </TabsList>
+          <TabsContent value="hi" lang="hi-Latn">
+            <h3 className="mt-2 font-semibold text-foreground">Aapke Bachche Ke Bukhar Ki Dekhbhaal</h3>
+            <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-foreground">{hi.map((t) => <li key={t}>{t}</li>)}</ul>
+          </TabsContent>
+          <TabsContent value="en" lang="en">
+            <h3 className="mt-2 font-semibold text-foreground">Fever Care for Your Child</h3>
+            <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-foreground">{en.map((t) => <li key={t}>{t}</li>)}</ul>
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
   );
 }
