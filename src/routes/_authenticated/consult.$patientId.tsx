@@ -20,6 +20,7 @@ import { DRUGS, DOSE_RULES_VERSION, checkDose, drugLabel, getAllergyWarning, typ
 import { todayISO } from "@/lib/pediacare";
 import { cn } from "@/lib/utils";
 import { consultPatientQueryOptions } from "@/lib/patient-query";
+import { buildAdvisory, type AdvisoryPatient } from "@/lib/advisory";
 
 export const Route = createFileRoute("/_authenticated/consult/$patientId")({
   head: () => ({
@@ -486,58 +487,12 @@ function DrugCombobox({ id, n, value, onChange }: { id: string; n: number; value
   );
 }
 
-type AdvisoryPatient = { full_name: string; date_of_birth: string; weight_kg: number } | null;
-
-function ageParts(dob: string): { years: number; months: number; total: number } {
-  const d = new Date(dob);
-  const now = new Date();
-  let total = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
-  if (now.getDate() < d.getDate()) total -= 1;
-  total = Math.max(0, total);
-  return { years: Math.floor(total / 12), months: total % 12, total };
-}
-
 function AdvisoryDialog({ open, onOpenChange, followUp, patient }: { open: boolean; onOpenChange: (o: boolean) => void; followUp: string; patient: AdvisoryPatient }) {
   // Age is computed when the dialog renders (i.e. when the preview is opened).
-  const age = patient ? ageParts(patient.date_of_birth) : null;
-  const band: "infant" | "toddler" | "standard" = !age ? "standard" : age.total < 3 ? "infant" : age.total < 24 ? "toddler" : "standard";
-  const now = new Date();
-  const enDate = now.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
-  const hiDate = now.toLocaleDateString("hi-IN", { day: "numeric", month: "long", year: "numeric" });
-  const enHeader = patient && age ? `For ${patient.full_name}, age ${age.years} years ${age.months} months, weight ${patient.weight_kg} kg — ${enDate}` : null;
-  const hiHeader = patient && age ? `${patient.full_name} के लिए, आयु ${age.years} वर्ष ${age.months} महीने, वज़न ${patient.weight_kg} किग्रा — ${hiDate}` : null;
-  const banner = band === "infant"
-    ? { tone: "danger" as const,
-        en: "⚠ CRITICAL: Infants under 3 months with fever require immediate medical evaluation. Do NOT self-medicate. Return to clinic immediately if fever is above 38°C.",
-        hi: "⚠ महत्वपूर्ण: 3 महीने से कम उम्र के शिशुओं में बुखार होने पर तुरंत चिकित्सा जांच आवश्यक है। स्वयं दवा न दें। बुखार 38°C से अधिक होने पर तुरंत क्लिनिक लाएं।" }
-    : band === "toddler"
-      ? { tone: "warn" as const,
-          en: "⚠ Note: Only give paracetamol if specifically prescribed by the doctor. Do not exceed the prescribed dose.",
-          hi: "⚠ ध्यान दें: पैरासिटामोल केवल तभी दें जब डॉक्टर ने निर्धारित किया हो। निर्धारित खुराक से अधिक न दें।" }
-      : null;
+  const { enHeader, hiHeader, banner, en, hi } = buildAdvisory(patient, followUp);
   const bannerClass = banner?.tone === "danger"
     ? "border-destructive bg-destructive/10 text-destructive"
     : "border-amber-600 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100";
-  const enPara = band === "toddler"
-    ? <><strong>Only as prescribed by your doctor:</strong> give paracetamol only if fever is above 38.5°C (101°F). Do NOT give aspirin.</>
-    : "Give paracetamol only if fever is above 38.5°C (101°F). Do NOT give aspirin.";
-  const hiPara = band === "toddler"
-    ? <><strong>केवल डॉक्टर के निर्देशानुसार:</strong> पैरासिटामोल तभी दें जब बुखार 38.5°C (101°F) से ऊपर हो। एस्पिरिन नहीं दें।</>
-    : "पैरासिटामोल तभी दें जब बुखार 38.5°C (101°F) से ऊपर हो। एस्पिरिन नहीं दें।";
-  const en: React.ReactNode[] = [
-    ...(band === "infant" ? [] : [enPara]),
-    "Keep child hydrated with water, ORS, or breast milk.",
-    "Watch for warning signs: fever above 40°C, seizures, difficulty breathing, unable to drink, unusually drowsy, rash. Bring child back immediately if any occur.",
-    "Most fevers are viral and resolve in 2-3 days without antibiotics.",
-    `Next follow-up: ${followUp} or sooner if symptoms worsen.`,
-  ];
-  const hi: React.ReactNode[] = [
-    ...(band === "infant" ? [] : [hiPara]),
-    "बच्चे को पानी, ORS, या माँ का दूध पिलाते रहें।",
-    "चेतावनी के संकेत: 40°C से ज़्यादा बुखार, दौरे, सांस लेने में तकलीफ़, पानी न पीना, ज़्यादा सुस्ती, चकत्ते। तुरंत क्लिनिक लाएं।",
-    "अधिकांश बुखार वायरल होते हैं और 2-3 दिन में एंटीबायोटिक के बिना ठीक हो जाते हैं।",
-    `अगला फ़ॉलो-अप: ${followUp} या लक्षण बिगड़ने पर।`,
-  ];
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
@@ -554,13 +509,13 @@ function AdvisoryDialog({ open, onOpenChange, followUp, patient }: { open: boole
             {hiHeader && <p className="mt-2 text-sm font-medium text-muted-foreground">{hiHeader}</p>}
             <h3 className="mt-2 font-semibold text-foreground">आपके बच्चे के बुखार की देखभाल</h3>
             {banner && <p role="note" className={cn("mt-2 rounded-md border-l-4 p-3 text-sm font-medium", bannerClass)}>{banner.hi}</p>}
-            <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-foreground">{hi.map((t, i) => <li key={i}>{t}</li>)}</ul>
+            <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-foreground">{hi.map((t, i) => <li key={i}>{t.lead && <strong>{t.lead} </strong>}{t.text}</li>)}</ul>
           </TabsContent>
           <TabsContent value="en" lang="en">
             {enHeader && <p className="mt-2 text-sm font-medium text-muted-foreground">{enHeader}</p>}
             <h3 className="mt-2 font-semibold text-foreground">Fever Care for Your Child</h3>
             {banner && <p role="note" className={cn("mt-2 rounded-md border-l-4 p-3 text-sm font-medium", bannerClass)}>{banner.en}</p>}
-            <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-foreground">{en.map((t, i) => <li key={i}>{t}</li>)}</ul>
+            <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-foreground">{en.map((t, i) => <li key={i}>{t.lead && <strong>{t.lead} </strong>}{t.text}</li>)}</ul>
           </TabsContent>
         </Tabs>
       </DialogContent>
