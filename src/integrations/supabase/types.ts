@@ -14,7 +14,162 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      consultations: {
+        Row: {
+          consult_date: string
+          created_at: string
+          diagnosis: string | null
+          id: string
+          patient_id: string
+          symptoms: string | null
+        }
+        Insert: {
+          consult_date?: string
+          created_at?: string
+          diagnosis?: string | null
+          id?: string
+          patient_id: string
+          symptoms?: string | null
+        }
+        Update: {
+          consult_date?: string
+          created_at?: string
+          diagnosis?: string | null
+          id?: string
+          patient_id?: string
+          symptoms?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultations_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patients: {
+        Row: {
+          allergies: string[]
+          created_at: string
+          date_of_birth: string
+          full_name: string
+          gender: string | null
+          id: string
+          parent_name: string | null
+          parent_phone: string | null
+          weight_kg: number
+        }
+        Insert: {
+          allergies?: string[]
+          created_at?: string
+          date_of_birth: string
+          full_name: string
+          gender?: string | null
+          id?: string
+          parent_name?: string | null
+          parent_phone?: string | null
+          weight_kg: number
+        }
+        Update: {
+          allergies?: string[]
+          created_at?: string
+          date_of_birth?: string
+          full_name?: string
+          gender?: string | null
+          id?: string
+          parent_name?: string | null
+          parent_phone?: string | null
+          weight_kg?: number
+        }
+        Relationships: []
+      }
+      prescriptions: {
+        Row: {
+          consultation_id: string
+          created_at: string
+          dosage_mg: number | null
+          drug_name: string
+          duration_days: number | null
+          frequency_per_day: number | null
+          id: string
+          whatsapp_read_at: string | null
+          whatsapp_sent_at: string | null
+        }
+        Insert: {
+          consultation_id: string
+          created_at?: string
+          dosage_mg?: number | null
+          drug_name: string
+          duration_days?: number | null
+          frequency_per_day?: number | null
+          id?: string
+          whatsapp_read_at?: string | null
+          whatsapp_sent_at?: string | null
+        }
+        Update: {
+          consultation_id?: string
+          created_at?: string
+          dosage_mg?: number | null
+          drug_name?: string
+          duration_days?: number | null
+          frequency_per_day?: number | null
+          id?: string
+          whatsapp_read_at?: string | null
+          whatsapp_sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prescriptions_consultation_id_fkey"
+            columns: ["consultation_id"]
+            isOneToOne: false
+            referencedRelation: "consultations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vaccination_records: {
+        Row: {
+          administered_date: string | null
+          created_at: string
+          id: string
+          patient_id: string
+          reminder_sent_at: string | null
+          scheduled_date: string
+          status: string
+          vaccine_name: string
+        }
+        Insert: {
+          administered_date?: string | null
+          created_at?: string
+          id?: string
+          patient_id: string
+          reminder_sent_at?: string | null
+          scheduled_date: string
+          status?: string
+          vaccine_name: string
+        }
+        Update: {
+          administered_date?: string | null
+          created_at?: string
+          id?: string
+          patient_id?: string
+          reminder_sent_at?: string | null
+          scheduled_date?: string
+          status?: string
+          vaccine_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vaccination_records_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
