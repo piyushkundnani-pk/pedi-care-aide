@@ -17,6 +17,8 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 import { registerPatient, todayISO } from "@/lib/pediacare";
+import { IAP_SCHEDULE, addDays } from "@/lib/iap-schedule";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type Field = "name" | "dob" | "weight" | "gender" | "parent" | "phone";
 const EMPTY = { name: "", dob: "", weight: "", gender: "", parent: "", phone: "", allergies: "" };
@@ -45,7 +47,16 @@ export function AddPatientDialog({ disabled }: { disabled?: boolean }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({});
+  const [allVax, setAllVax] = useState(true);
+  const [picked, setPicked] = useState<string[]>([]);
   const errors = validate(form);
+  const today = todayISO();
+  const pastVax = form.dob && form.dob < today
+    ? IAP_SCHEDULE.filter((m) => addDays(form.dob, m.days) <= today).flatMap((m) =>
+        m.vaccines.map((v) => ({ vaccine: v, milestone: m.milestone })))
+    : [];
+  const pickedValid = picked.filter((v) => pastVax.some((p) => p.vaccine === v));
+  const allPicked = pastVax.length > 0 && pickedValid.length === pastVax.length;
   const valid = Object.keys(errors).length === 0;
 
   const set = (k: keyof typeof EMPTY) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -57,6 +68,8 @@ export function AddPatientDialog({ disabled }: { disabled?: boolean }) {
     if (!next) {
       setForm(EMPTY);
       setTouched({});
+      setAllVax(true);
+      setPicked([]);
     }
   }
 
@@ -74,7 +87,7 @@ export function AddPatientDialog({ disabled }: { disabled?: boolean }) {
           .map((a) => a.trim())
           .filter(Boolean)
           .slice(0, 20),
-      }),
+      }, allVax ? "all" : pickedValid),
     onSuccess: () => {
       toast.success(`Patient ${form.name.trim()} registered. Added to Today's Appointments.`);
       void queryClient.invalidateQueries();
@@ -167,6 +180,38 @@ export function AddPatientDialog({ disabled }: { disabled?: boolean }) {
               aria-describedby="ap-allergies-help" onChange={(e) => set("allergies")(e.target.value)} />
             <p id="ap-allergies-help" className="text-sm text-muted-foreground">Optional. Separate with commas.</p>
           </div>
+          <fieldset className="space-y-3 rounded-md border border-border p-3">
+            <legend className="px-1 text-sm font-semibold">Vaccination History</legend>
+            <div className="flex items-start gap-2">
+              <Checkbox id="ap-allvax" checked={allVax} onCheckedChange={(c) => setAllVax(c === true)} />
+              <Label htmlFor="ap-allvax" className="leading-snug">Child has received all age-appropriate vaccinations to date</Label>
+            </div>
+            {!allVax && (
+              <div className="space-y-2">
+                <p id="ap-vax-title" className="text-sm font-medium">Select vaccinations already administered:</p>
+                {pastVax.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Enter a date of birth to see vaccines due so far.</p>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="ap-vax-all" checked={allPicked}
+                        onCheckedChange={(c) => setPicked(c === true ? pastVax.map((p) => p.vaccine) : [])} />
+                      <Label htmlFor="ap-vax-all">Select All</Label>
+                    </div>
+                    <ul role="group" aria-labelledby="ap-vax-title" className="max-h-48 space-y-2 overflow-y-auto rounded-md border border-border p-2">
+                      {pastVax.map(({ vaccine, milestone }, i) => (
+                        <li key={vaccine} className="flex items-center gap-2">
+                          <Checkbox id={`ap-vax-${i}`} checked={pickedValid.includes(vaccine)}
+                            onCheckedChange={(c) => setPicked((p) => c === true ? [...p, vaccine] : p.filter((x) => x !== vaccine))} />
+                          <Label htmlFor={`ap-vax-${i}`} className="font-normal">{vaccine} ({milestone})</Label>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
+          </fieldset>
           <DialogFooter className="mt-2 gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button type="submit" disabled={!valid || register.isPending} className="gap-2">

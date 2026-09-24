@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppHeader } from "@/components/AppHeader";
+import { ReminderPreviewDialog } from "@/components/ReminderPreviewDialog";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -97,7 +98,7 @@ async function fetchVaccinations() {
   const { data, error } = await supabase
     .from("vaccination_records")
     .select(
-      "id, vaccine_name, reminder_sent_at, patients(id, full_name, date_of_birth, weight_kg, allergies)",
+      "id, vaccine_name, scheduled_date, reminder_sent_at, patients(id, full_name, date_of_birth, weight_kg, allergies, parent_name)",
     )
     .eq("scheduled_date", todayISO())
     .eq("status", "scheduled")
@@ -107,14 +108,16 @@ async function fetchVaccinations() {
     .map((row) => ({
       id: row.id,
       vaccine_name: row.vaccine_name,
+      scheduled_date: row.scheduled_date,
       reminder_sent_at: row.reminder_sent_at,
-      patient: row.patients as unknown as PatientRow | null,
+      patient: row.patients as unknown as (PatientRow & { parent_name: string | null }) | null,
     }))
     .filter((r) => r.patient !== null) as {
     id: string;
     vaccine_name: string;
+    scheduled_date: string;
     reminder_sent_at: string | null;
-    patient: PatientRow;
+    patient: PatientRow & { parent_name: string | null };
   }[];
 }
 
@@ -189,6 +192,7 @@ function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [reminderRow, setReminderRow] = useState<Awaited<ReturnType<typeof fetchVaccinations>>[number] | null>(null);
   const reminder = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -199,7 +203,8 @@ function Dashboard() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["vaccinations", todayISO()] });
-      toast.success("Reminder sent to the parent.");
+      toast.success(`Reminder sent to ${reminderRow?.patient.parent_name ?? "the parent"}`);
+      setReminderRow(null);
     },
     onError: () => toast.error("Could not send the reminder."),
   });
@@ -387,13 +392,14 @@ function Dashboard() {
                       variant="outline"
                       className="shrink-0 gap-2"
                       disabled={reminder.isPending || Boolean(row.reminder_sent_at)}
-                      onClick={() => reminder.mutate(row.id)}
+                      onClick={() => setReminderRow(row)}
                       aria-label={`Send ${row.vaccine_name} reminder to ${row.patient.full_name}'s parent`}
                     >
                       {row.reminder_sent_at ? (
                         <>
                           <Check className="size-4" aria-hidden="true" />
-                          Reminder sent
+                          Reminder sent{" "}
+                          {new Date(row.reminder_sent_at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
                         </>
                       ) : (
                         <>
@@ -406,6 +412,13 @@ function Dashboard() {
                 ))}
               </ul>
             )}
+            <ReminderPreviewDialog
+              target={reminderRow ? { parentName: reminderRow.patient.parent_name, patientName: reminderRow.patient.full_name, vaccine: reminderRow.vaccine_name, scheduledDate: reminderRow.scheduled_date } : null}
+              open={Boolean(reminderRow)}
+              sending={reminder.isPending}
+              onOpenChange={(o) => { if (!o && !reminder.isPending) setReminderRow(null); }}
+              onConfirm={() => { if (reminderRow) reminder.mutate(reminderRow.id); }}
+            />
           </Card>
         </div>
 

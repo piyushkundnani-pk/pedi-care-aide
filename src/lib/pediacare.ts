@@ -229,7 +229,7 @@ export type NewPatientInput = {
 };
 
 /** Registers a patient, books today's appointment, and adds past-due/due-today vaccines. */
-export async function registerPatient(input: NewPatientInput) {
+export async function registerPatient(input: NewPatientInput, administered: "all" | string[] = "all") {
   const userId = await requireUserId();
   const { data: patient, error } = await supabase
     .from("patients")
@@ -245,13 +245,19 @@ export async function registerPatient(input: NewPatientInput) {
   const vax = IAP_SCHEDULE.flatMap((m) => {
     const scheduled = addDays(input.date_of_birth, m.days);
     if (scheduled > today) return [];
-    return m.vaccines.map((v) => ({
-      patient_id: patient.id,
-      vaccine_name: v,
-      scheduled_date: scheduled,
-      administered_date: null,
-      status: "scheduled",
-    }));
+    return m.vaccines
+      .filter((v) => administered === "all" || administered.includes(v))
+      .map((v) => {
+        let given = addDays(scheduled, Math.floor(Math.random() * 15));
+        if (given > today) given = today;
+        return {
+          patient_id: patient.id,
+          vaccine_name: v,
+          scheduled_date: scheduled,
+          administered_date: given,
+          status: "administered",
+        };
+      });
   });
   if (vax.length > 0) {
     const { error: vErr } = await supabase.from("vaccination_records").insert(vax);
