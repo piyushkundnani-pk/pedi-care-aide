@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatAge } from "@/lib/pediacare";
 import { buildAdvisory } from "@/lib/advisory";
 import { cn } from "@/lib/utils";
+import { doctorDisplayName } from "@/lib/doctor-name";
 
 export const Route = createFileRoute("/_authenticated/prescription/$consultId")({
   head: () => ({
@@ -63,6 +64,8 @@ const fmtTime = (iso: string | null | undefined) =>
 
 function PrescriptionPage() {
   const { consultId } = Route.useParams();
+  const { user } = Route.useRouteContext();
+  const doctorName = doctorDisplayName(user);
   const queryClient = useQueryClient();
   const queryKey = ["prescription", consultId];
   const q = useQuery({ queryKey, queryFn: () => fetchPrescription(consultId) });
@@ -125,8 +128,8 @@ function PrescriptionPage() {
         ) : (
           <>
             <div className="grid items-start gap-6 md:grid-cols-2">
-              <PrescriptionCard data={q.data} />
-              <WhatsAppPreview data={q.data} sentAt={sentAt} readAt={readAt} />
+              <PrescriptionCard data={q.data} doctorName={doctorName} />
+              <WhatsAppPreview data={q.data} sentAt={sentAt} readAt={readAt} doctorName={doctorName} />
             </div>
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <Button asChild variant="outline" size="lg" className="gap-2">
@@ -146,7 +149,7 @@ function PrescriptionPage() {
 
 type Data = Awaited<ReturnType<typeof fetchPrescription>>;
 
-function PrescriptionCard({ data }: { data: Data }) {
+function PrescriptionCard({ data, doctorName }: { data: Data; doctorName: string }) {
   const { consultation: c, patient: p, prescriptions: rx } = data;
   const date = new Date(c.consult_date).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
   return (
@@ -155,7 +158,7 @@ function PrescriptionCard({ data }: { data: Data }) {
         <header className="flex flex-wrap items-start justify-between gap-2 border-b border-border pb-4">
           <div>
             <h2 id="rx-title" className="text-xl font-semibold text-primary">PediaCare Clinic</h2>
-            <p className="text-sm text-foreground">Dr. Priya Sharma, MD (Pediatrics)</p>
+            <p className="text-sm text-foreground">{doctorName}</p>
           </div>
           <dl className="text-right text-sm">
             <div><dt className="sr-only">Date</dt><dd>{date}</dd></div>
@@ -208,14 +211,14 @@ function PrescriptionCard({ data }: { data: Data }) {
           </div>
         </section>
         <footer className="flex justify-end pt-8">
-          <div className="w-48 border-t border-foreground pt-1 text-center text-sm text-muted-foreground">Dr. Priya Sharma — Signature</div>
+          <div className="w-48 border-t border-foreground pt-1 text-center text-sm text-muted-foreground">{doctorName} — Signature</div>
         </footer>
       </CardContent>
     </Card>
   );
 }
 
-function WhatsAppPreview({ data, sentAt, readAt }: { data: Data; sentAt: string | null; readAt: string | null }) {
+function WhatsAppPreview({ data, sentAt, readAt, doctorName }: { data: Data; sentAt: string | null; readAt: string | null; doctorName: string }) {
   const { consultation: c, patient: p, prescriptions: rx } = data;
   const maxDays = Math.max(0, ...rx.map((r) => r.duration_days ?? 0));
   const follow = new Date(c.consult_date);
@@ -264,7 +267,7 @@ function WhatsAppPreview({ data, sentAt, readAt }: { data: Data; sentAt: string 
         <div className="max-h-[560px] space-y-2 overflow-y-auto bg-wa-chat p-3 sm:p-4" lang="hi">
           <Bubble time={time} ticks={ticks}>
             <p className="font-devanagari whitespace-pre-line">
-              {`नमस्ते ${p.parent_name ?? ""} जी। यहाँ ${p.full_name} के लिए Dr. Priya द्वारा दी गई पर्ची है:\n${lines.join("\n")}`}
+              {`नमस्ते ${p.parent_name ?? ""} जी। यहाँ ${p.full_name} के लिए ${doctorName} द्वारा दी गई पर्ची है:\n${lines.join("\n")}\n\n- ${doctorName} via PediaCare`}
             </p>
           </Bubble>
           {c.attach_fever_advisory && (
