@@ -5,6 +5,7 @@ import { AlertTriangle, BellRing, Check, ChevronDown, Clock, Send, Syringe } fro
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppHeader } from "@/components/AppHeader";
+import { ReminderPreviewDialog } from "@/components/ReminderPreviewDialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -237,7 +238,7 @@ function VaccinationsPage() {
           <span className="rounded-full border border-border px-3 py-1">Schedule: {IAP_SCHEDULE_VERSION}</span>
         </p>
         <ReminderPreviewDialog
-          target={reminderTarget}
+          target={reminderTarget ? { parentName: reminderTarget.patient.parent_name, patientName: reminderTarget.patient.full_name, vaccine: reminderTarget.item.vaccine, scheduledDate: reminderTarget.item.scheduledDate } : null}
           open={Boolean(reminderTarget)}
           sending={remind.isPending}
           onOpenChange={(open) => { if (!open && !remind.isPending) setReminderTarget(null); }}
@@ -311,65 +312,6 @@ function ReminderButton({
         </>
       )}
     </Button>
-  );
-}
-
-function ReminderPreviewDialog({
-  target,
-  open,
-  sending,
-  onOpenChange,
-  onConfirm,
-}: {
-  target: ReminderTarget | null;
-  open: boolean;
-  sending: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
-}) {
-  const patient = target?.patient;
-  const item = target?.item;
-  const parentName = patient?.parent_name ?? "Parent";
-  const scheduledDate = item ? fmtDate(item.scheduledDate) : "";
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>WhatsApp Preview (Mocked)</DialogTitle>
-          <DialogDescription>Review the vaccination reminder before recording it as sent.</DialogDescription>
-        </DialogHeader>
-        {patient && item && (
-          <section aria-label="Mock WhatsApp vaccination reminder preview" className="overflow-hidden rounded-lg border border-border">
-            <div className="flex items-center gap-3 bg-wa-header px-4 py-3 text-wa-header-foreground">
-              <div className="flex size-9 items-center justify-center rounded-full bg-wa-header-foreground/20 text-sm font-semibold" aria-hidden="true">PC</div>
-              <div>
-                <p className="font-semibold leading-tight">{parentName}</p>
-                <p className="text-xs opacity-90">PediaCare Clinic</p>
-              </div>
-            </div>
-            <div className="bg-wa-chat p-4">
-              <div className="ml-auto max-w-[92%] rounded-lg rounded-tr-none bg-wa-bubble px-3 py-2 text-sm text-wa-bubble-foreground shadow-sm">
-                <p lang="hi" className="font-devanagari">
-                  नमस्ते {parentName} जी। {patient.full_name} का अगला टीका {item.vaccine} {scheduledDate} को निर्धारित है। कृपया समय पर क्लिनिक आएं। - PediaCare Clinic
-                </p>
-                <p lang="en" className="mt-3 border-t border-wa-meta/30 pt-2 text-xs">
-                  Reminder: {patient.full_name}&apos;s next vaccine {item.vaccine} is scheduled for {scheduledDate}. Please visit the clinic on time.
-                </p>
-                <p className="mt-1 text-right text-[11px] text-wa-meta">{new Date().toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}</p>
-              </div>
-            </div>
-          </section>
-        )}
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={sending}>Cancel</Button>
-          <Button type="button" onClick={onConfirm} disabled={sending} className="gap-2">
-            <Send className="size-4" aria-hidden="true" />
-            {sending ? "Sending…" : "Confirm Send"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 
