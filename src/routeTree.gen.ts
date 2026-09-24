@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedConsultPatientIdRouteImport } from './routes/_authenticated/consult.$patientId'
+import { Route as AuthenticatedPrescriptionConsultIdRouteImport } from './routes/_authenticated/prescription.$consultId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,16 +35,24 @@ const AuthenticatedConsultPatientIdRoute =
     path: '/consult/$patientId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPrescriptionConsultIdRoute =
+  AuthenticatedPrescriptionConsultIdRouteImport.update({
+    id: '/prescription/$consultId',
+    path: '/prescription/$consultId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/consult/$patientId': typeof AuthenticatedConsultPatientIdRoute
+  '/prescription/$consultId': typeof AuthenticatedPrescriptionConsultIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/consult/$patientId': typeof AuthenticatedConsultPatientIdRoute
+  '/prescription/$consultId': typeof AuthenticatedPrescriptionConsultIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -51,18 +60,21 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/consult/$patientId': typeof AuthenticatedConsultPatientIdRoute
+  '/_authenticated/prescription/$consultId': typeof AuthenticatedPrescriptionConsultIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/consult/$patientId'
+  fullPaths:
+    '/' | '/dashboard' | '/consult/$patientId' | '/prescription/$consultId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/consult/$patientId'
+  to: '/' | '/dashboard' | '/consult/$patientId' | '/prescription/$consultId'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/_authenticated/dashboard'
     | '/_authenticated/consult/$patientId'
+    | '/_authenticated/prescription/$consultId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -100,17 +112,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConsultPatientIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/prescription/$consultId': {
+      id: '/_authenticated/prescription/$consultId'
+      path: '/prescription/$consultId'
+      fullPath: '/prescription/$consultId'
+      preLoaderRoute: typeof AuthenticatedPrescriptionConsultIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedConsultPatientIdRoute: typeof AuthenticatedConsultPatientIdRoute
+  AuthenticatedPrescriptionConsultIdRoute: typeof AuthenticatedPrescriptionConsultIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedConsultPatientIdRoute: AuthenticatedConsultPatientIdRoute,
+  AuthenticatedPrescriptionConsultIdRoute:
+    AuthenticatedPrescriptionConsultIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
