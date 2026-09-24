@@ -29,10 +29,26 @@ export function AppHeader() {
             PediaCare
           </span>
         </Link>
-        <Button variant="ghost" onClick={signOut} className="gap-2">
-          <LogOut className="size-4" aria-hidden="true" />
-          Sign out
-        </Button>
+        <nav aria-label="Main" className="flex items-center gap-1">
+          {([
+            ["/dashboard", "Dashboard"],
+            ["/vaccinations", "Vaccinations"],
+          ] as const).map(([to, label]) => (
+            <Link
+              key={to}
+              to={to}
+              className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              activeProps={{ className: "bg-accent text-accent-foreground", "aria-current": "page" }}
+            >
+              {label}
+            </Link>
+          ))}
+          <Button variant="ghost" onClick={signOut} className="gap-2">
+            <LogOut className="size-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Sign out</span>
+            <span className="sr-only sm:hidden">Sign out</span>
+          </Button>
+        </nav>
       </div>
     </header>
   );
