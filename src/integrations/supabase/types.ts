@@ -65,6 +65,7 @@ export type Database = {
           id: string
           parent_name: string | null
           parent_phone: string | null
+          user_id: string | null
           weight_kg: number
         }
         Insert: {
@@ -76,6 +77,7 @@ export type Database = {
           id?: string
           parent_name?: string | null
           parent_phone?: string | null
+          user_id?: string | null
           weight_kg: number
         }
         Update: {
@@ -87,6 +89,7 @@ export type Database = {
           id?: string
           parent_name?: string | null
           parent_phone?: string | null
+          user_id?: string | null
           weight_kg?: number
         }
         Relationships: []
