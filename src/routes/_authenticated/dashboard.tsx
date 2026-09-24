@@ -34,6 +34,8 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
         content:
           "Today's appointments, vaccinations due and prescriptions written, at a glance.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),

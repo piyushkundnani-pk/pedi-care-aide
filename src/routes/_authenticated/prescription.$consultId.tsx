@@ -10,6 +10,8 @@ export const Route = createFileRoute("/_authenticated/prescription/$consultId")(
       { name: "description", content: "Review and send the prescription via WhatsApp." },
       { property: "og:title", content: "Prescription — PediaCare" },
       { property: "og:description", content: "Review and send the prescription via WhatsApp." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
