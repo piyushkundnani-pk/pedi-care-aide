@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedVaccinationsRouteImport } from './routes/_authenticated/vaccinations'
 import { Route as AuthenticatedConsultPatientIdRouteImport } from './routes/_authenticated/consult.$patientId'
 import { Route as AuthenticatedPrescriptionConsultIdRouteImport } from './routes/_authenticated/prescription.$consultId'
 
@@ -29,6 +30,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedVaccinationsRoute =
+  AuthenticatedVaccinationsRouteImport.update({
+    id: '/vaccinations',
+    path: '/vaccinations',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedConsultPatientIdRoute =
   AuthenticatedConsultPatientIdRouteImport.update({
     id: '/consult/$patientId',
@@ -45,12 +52,14 @@ const AuthenticatedPrescriptionConsultIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/vaccinations': typeof AuthenticatedVaccinationsRoute
   '/consult/$patientId': typeof AuthenticatedConsultPatientIdRoute
   '/prescription/$consultId': typeof AuthenticatedPrescriptionConsultIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/vaccinations': typeof AuthenticatedVaccinationsRoute
   '/consult/$patientId': typeof AuthenticatedConsultPatientIdRoute
   '/prescription/$consultId': typeof AuthenticatedPrescriptionConsultIdRoute
 }
@@ -59,20 +68,31 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/vaccinations': typeof AuthenticatedVaccinationsRoute
   '/_authenticated/consult/$patientId': typeof AuthenticatedConsultPatientIdRoute
   '/_authenticated/prescription/$consultId': typeof AuthenticatedPrescriptionConsultIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/dashboard' | '/consult/$patientId' | '/prescription/$consultId'
+    | '/'
+    | '/dashboard'
+    | '/vaccinations'
+    | '/consult/$patientId'
+    | '/prescription/$consultId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/consult/$patientId' | '/prescription/$consultId'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/vaccinations'
+    | '/consult/$patientId'
+    | '/prescription/$consultId'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/_authenticated/dashboard'
+    | '/_authenticated/vaccinations'
     | '/_authenticated/consult/$patientId'
     | '/_authenticated/prescription/$consultId'
   fileRoutesById: FileRoutesById
@@ -105,6 +125,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/vaccinations': {
+      id: '/_authenticated/vaccinations'
+      path: '/vaccinations'
+      fullPath: '/vaccinations'
+      preLoaderRoute: typeof AuthenticatedVaccinationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/consult/$patientId': {
       id: '/_authenticated/consult/$patientId'
       path: '/consult/$patientId'
@@ -124,12 +151,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedVaccinationsRoute: typeof AuthenticatedVaccinationsRoute
   AuthenticatedConsultPatientIdRoute: typeof AuthenticatedConsultPatientIdRoute
   AuthenticatedPrescriptionConsultIdRoute: typeof AuthenticatedPrescriptionConsultIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedVaccinationsRoute: AuthenticatedVaccinationsRoute,
   AuthenticatedConsultPatientIdRoute: AuthenticatedConsultPatientIdRoute,
   AuthenticatedPrescriptionConsultIdRoute:
     AuthenticatedPrescriptionConsultIdRoute,
