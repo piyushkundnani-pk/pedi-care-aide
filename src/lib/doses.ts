@@ -29,18 +29,12 @@ export function checkDose(
   drugName: string,
   doseMg: number | null,
   weightKg: number,
-  allergies: string[],
 ): SafetyResult {
   const drug = DRUGS.find((d) => d.name === drugName);
   if (!drug) return { level: "none", message: "Select a drug to check dose." };
   const min = Math.round(drug.minMgPerKg * weightKg * 10) / 10;
   const max = Math.min(Math.round(drug.maxMgPerKg * weightKg * 10) / 10, drug.maxSingleMg);
   const range = { min, max };
-  const allergy = allergies.find((a) =>
-    drug.allergyKeys.some((k) => a.toLowerCase().includes(k)),
-  );
-  if (allergy)
-    return { level: "danger", message: `Allergy conflict: patient is allergic to ${allergy}.`, range };
   if (doseMg == null || Number.isNaN(doseMg))
     return { level: "none", message: `Safe range: ${min}–${max} mg per dose.`, range };
   if (doseMg > max * 1.2)
@@ -50,4 +44,18 @@ export function checkDose(
   if (doseMg < min)
     return { level: "warn", message: `Below range: min ${min} mg per dose (may be sub-therapeutic).`, range };
   return { level: "ok", message: `Within safe range (${min}–${max} mg).`, range };
+}
+
+export function getAllergyWarning(drugName: string, allergies: string[]): string | null {
+  const normalizedAllergies = allergies.map((allergy) => allergy.trim().toLocaleLowerCase());
+
+  if (drugName.toLocaleLowerCase() === "amoxicillin" && normalizedAllergies.some((allergy) => allergy.includes("penicillin"))) {
+    return "Allergy risk: patient allergic to Penicillin. Do not prescribe Amoxicillin without verification.";
+  }
+
+  if (drugName.toLocaleLowerCase() === "ibuprofen" && normalizedAllergies.some((allergy) => allergy.includes("nsaid"))) {
+    return "Allergy risk: patient allergic to NSAID class. Do not prescribe Ibuprofen without verification.";
+  }
+
+  return null;
 }

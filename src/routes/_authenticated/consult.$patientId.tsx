@@ -11,9 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatAge } from "@/lib/pediacare";
-import { DRUGS, checkDose, type SafetyResult } from "@/lib/doses";
+import { DRUGS, checkDose, getAllergyWarning, type SafetyResult } from "@/lib/doses";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/consult/$patientId")({
@@ -41,6 +42,7 @@ function ConsultPage() {
   const [symptoms, setSymptoms] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
   const [rows, setRows] = useState<Row[]>([newRow()]);
+  const [attachFeverAdvisory, setAttachFeverAdvisory] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -69,13 +71,18 @@ function ConsultPage() {
     };
   }, [patientId]);
 
+  useEffect(() => {
+    if (/fever/i.test(diagnosis)) setAttachFeverAdvisory(true);
+  }, [diagnosis]);
+
   const update = (key: string, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
   const results = rows.map((r) =>
-    patient ? checkDose(r.drug, r.dose === "" ? null : Number(r.dose), Number(patient.weight_kg), patient.allergies) : null,
+    patient ? checkDose(r.drug, r.dose === "" ? null : Number(r.dose), Number(patient.weight_kg)) : null,
   );
-  const hasDanger = results.some((r) => r?.level === "danger");
+  const allergyWarnings = rows.map((row) => patient ? getAllergyWarning(row.drug, patient.allergies) : null);
+  const hasDanger = results.some((r) => r?.level === "danger") || allergyWarnings.some(Boolean);
 
   async function save(): Promise<void> {
     if (!patient) return;
@@ -86,7 +93,12 @@ function ConsultPage() {
     setSaving(true);
     const { data: consult, error: cErr } = await supabase
       .from("consultations")
-      .insert({ patient_id: patient.id, symptoms: symptoms || null, diagnosis })
+      .insert({
+        patient_id: patient.id,
+        symptoms: symptoms || null,
+        diagnosis,
+        attach_fever_advisory: attachFeverAdvisory,
+      })
       .select("id")
       .single();
     if (cErr || !consult) {
@@ -112,7 +124,7 @@ function ConsultPage() {
   return (
     <div className="min-h-screen bg-muted/40">
       <AppHeader />
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <Button asChild variant="ghost" className="mb-4 gap-2 px-2">
           <Link to="/dashboard">
             <ArrowLeft className="size-4" aria-hidden="true" />
@@ -157,21 +169,8 @@ function ConsultPage() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader><CardTitle>Clinical notes</CardTitle></CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="symptoms">Symptoms</Label>
-                  <Textarea id="symptoms" rows={4} value={symptoms} onChange={(e) => setSymptoms(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="diagnosis">Diagnosis <span aria-hidden="true">*</span></Label>
-                  <Textarea id="diagnosis" rows={4} required aria-required="true" value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
+            <div className="grid items-start gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+            <Card className="md:col-span-1">
               <CardHeader className="flex-row items-center justify-between space-y-0">
                 <CardTitle>Prescription</CardTitle>
                 <Button type="button" variant="outline" size="sm" className="gap-1" onClick={() => setRows((r) => [...r, newRow()])}>
@@ -185,13 +184,46 @@ function ConsultPage() {
                     index={i}
                     row={r}
                     result={results[i] ?? null}
+                    allergyWarning={allergyWarnings[i] ?? null}
                     canRemove={rows.length > 1}
                     onChange={(p) => update(r.key, p)}
                     onRemove={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
                   />
                 ))}
+                <div className="flex min-h-11 items-center gap-3 rounded-md border border-border bg-muted/40 px-3 py-2">
+                  <Checkbox
+                    id="attach-fever-advisory"
+                    checked={attachFeverAdvisory}
+                    onCheckedChange={(checked) => setAttachFeverAdvisory(checked === true)}
+                    aria-describedby="fever-advisory-description"
+                    className="size-5"
+                  />
+                  <div>
+                    <Label htmlFor="attach-fever-advisory" className="cursor-pointer leading-5">
+                      Attach vernacular fever advisory to WhatsApp message
+                    </Label>
+                    <p id="fever-advisory-description" className="text-xs text-muted-foreground">
+                      Automatically selected when the diagnosis mentions fever.
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
+
+            <Card className="md:col-span-1">
+              <CardHeader><CardTitle>Clinical notes</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="symptoms">Symptoms</Label>
+                  <Textarea id="symptoms" rows={5} value={symptoms} onChange={(e) => setSymptoms(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="diagnosis">Diagnosis <span aria-hidden="true">*</span></Label>
+                  <Textarea id="diagnosis" rows={5} required aria-required="true" value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} />
+                </div>
+              </CardContent>
+            </Card>
+            </div>
 
             <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
               {hasDanger && (
@@ -220,13 +252,14 @@ function Info2({ label, value }: { label: string; value: string }) {
 }
 
 function DrugRow({
-  index, row, result, canRemove, onChange, onRemove,
+  index, row, result, allergyWarning, canRemove, onChange, onRemove,
 }: {
-  index: number; row: Row; result: SafetyResult | null; canRemove: boolean;
+  index: number; row: Row; result: SafetyResult | null; allergyWarning: string | null; canRemove: boolean;
   onChange: (p: Partial<Row>) => void; onRemove: () => void;
 }) {
   const id = useId();
   const flagId = `${id}-flag`;
+  const allergyId = `${id}-allergy`;
   const n = index + 1;
   const level = result?.level ?? "none";
   const Icon = level === "ok" ? CheckCircle2 : level === "warn" ? AlertTriangle : level === "danger" ? XOctagon : Info;
@@ -234,8 +267,8 @@ function DrugRow({
   return (
     <fieldset className="rounded-lg border border-border p-4">
       <legend className="px-1 text-sm font-medium text-foreground">Drug {n}</legend>
-      <div className="grid gap-3 md:grid-cols-[2fr_1fr_1fr_1fr_auto] md:items-end">
-        <div className="space-y-1.5">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5 sm:col-span-2">
           <Label htmlFor={`${id}-drug`}>Drug</Label>
           <Select
             value={row.drug}
@@ -265,7 +298,7 @@ function DrugRow({
             value={row.dose}
             onChange={(e) => onChange({ dose: e.target.value })}
             aria-label={`Dose in milligrams for drug ${n}`}
-            aria-describedby={flagId}
+            aria-describedby={allergyWarning ? `${allergyId} ${flagId}` : flagId}
             aria-invalid={level === "danger" || level === "warn"}
           />
         </div>
@@ -277,20 +310,31 @@ function DrugRow({
           <Label htmlFor={`${id}-days`}>Days</Label>
           <Input id={`${id}-days`} type="number" min={1} value={row.days} onChange={(e) => onChange({ days: e.target.value })} />
         </div>
-        <Button type="button" variant="ghost" size="icon" className="min-h-11 min-w-11" disabled={!canRemove} onClick={onRemove} aria-label={`Remove drug ${n}`}>
+        <Button type="button" variant="ghost" size="icon" className="min-h-11 min-w-11 justify-self-end sm:col-span-2" disabled={!canRemove} onClick={onRemove} aria-label={`Remove drug ${n}`}>
           <Trash2 className="size-4" aria-hidden="true" />
         </Button>
       </div>
+      {allergyWarning && (
+        <div
+          id={allergyId}
+          role="alert"
+          aria-label={`Allergy warning for drug ${n}`}
+          className="mt-3 flex items-start gap-2 rounded-md border border-safety-danger bg-safety-danger-bg px-3 py-2 text-sm font-semibold text-safety-danger"
+        >
+          <XOctagon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <span>{allergyWarning}</span>
+        </div>
+      )}
       <div
         id={flagId}
-        role={level === "danger" ? "alert" : "status"}
+        role="status"
         aria-live="polite"
         aria-label={`Dose safety check for drug ${n}`}
         className={cn(
           "mt-3 flex items-start gap-2 rounded-md border px-3 py-2 text-sm",
-          level === "ok" && "border-primary/30 bg-primary/5 text-foreground",
-          level === "warn" && "border-destructive/40 bg-destructive/5 text-foreground",
-          level === "danger" && "border-destructive bg-destructive/10 font-medium text-destructive",
+          level === "ok" && "border-safety-success bg-safety-success-bg font-medium text-safety-success",
+          level === "warn" && "border-safety-warning bg-safety-warning-bg font-medium text-safety-warning",
+          level === "danger" && "border-safety-danger bg-safety-danger-bg font-semibold text-safety-danger",
           level === "none" && "border-border bg-muted/50 text-muted-foreground",
         )}
       >
