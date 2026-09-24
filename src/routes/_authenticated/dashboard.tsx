@@ -193,6 +193,28 @@ function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const reminder = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("vaccination_records")
+        .update({ reminder_sent_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["vaccinations", todayISO()] });
+      toast.success("Reminder sent to the parent.");
+    },
+    onError: () => toast.error("Could not send the reminder."),
+  });
+
+  const queue = (appointments.data ?? []).filter((a) => a.status !== "completed");
+  const completed = (appointments.data ?? []).filter((a) => a.status === "completed");
+  const [completedOpen, setCompletedOpen] = useState(true);
+
+  const isEmpty =
+    (appointments.data?.length ?? 0) === 0 && (vaccinations.data?.length ?? 0) === 0;
+
   const [confirmOpen, setConfirmOpen] = useState(false);
   const busy = seed.isPending || reset.isPending;
 
