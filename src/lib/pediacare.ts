@@ -18,9 +18,8 @@ export function formatAge(dateOfBirth: string): string {
 }
 
 export function todayISO(): string {
-  const d = new Date();
-  const tz = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - tz).toISOString().slice(0, 10);
+  // Local calendar date (YYYY-MM-DD) in the clinician's own timezone — never UTC.
+  return new Date().toLocaleDateString("sv-SE");
 }
 
 export function formatToday(): string {
@@ -161,6 +160,7 @@ async function insertPatients(userId: string, list: typeof SAMPLE_PATIENTS) {
       user_id: userId,
       patient_id: row.id,
       symptoms: list.find((p) => p.full_name === row.full_name)?.symptoms ?? null,
+      appointment_date: todayISO(),
       appointment_status: "scheduled",
     })),
   );
@@ -213,6 +213,33 @@ export async function mergeSampleData(): Promise<{ added: number }> {
   return { added: inserted.length };
 }
 
+/** Local-midnight bounds of today as UTC ISO instants, for timestamp columns. */
+export function todayBounds(): { start: string; end: string } {
+  const t = todayISO();
+  const start = new Date(`${t}T00:00:00`);
+  const end = new Date(start.getTime() + 86_400_000);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
+/** First-visit onboarding: auto-loads sample data only if no settings row exists yet. */
+export async function runOnboardingIfNeeded(): Promise<boolean> {
+  const userId = await requireUserId();
+  const { data, error } = await supabase
+    .from("user_settings")
+    .select("has_completed_onboarding")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  if (data) return false;
+  // Claim the row first so concurrent tabs/sign-ins cannot seed twice.
+  const { error: insErr } = await supabase
+    .from("user_settings")
+    .insert({ user_id: userId, has_completed_onboarding: true });
+  if (insErr) return false;
+  await mergeSampleData();
+  return true;
+}
+
 export async function hasAnyPatients(): Promise<boolean> {
   const userId = await requireUserId();
   const { count, error } = await supabase
@@ -244,7 +271,7 @@ export async function registerPatient(input: NewPatientInput, administered: "all
   if (error) throw error;
   const { error: cErr } = await supabase
     .from("consultations")
-    .insert({ user_id: userId, patient_id: patient.id, appointment_status: "scheduled" });
+    .insert({ user_id: userId, patient_id: patient.id, appointment_date: todayISO(), appointment_status: "scheduled" });
   if (cErr) throw cErr;
   const today = todayISO();
   const vax = IAP_SCHEDULE.flatMap((m) => {
