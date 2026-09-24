@@ -455,7 +455,12 @@ function DrugCombobox({ id, n, value, onChange }: { id: string; n: number; value
         autoComplete="off"
         placeholder="Search generic or brand…"
         value={text}
-        onChange={(e) => { setText(e.target.value); setOpen(true); setActive(0); }}
+        onChange={(e) => {
+          setText(e.target.value);
+          onChange(e.target.value);
+          setOpen(true);
+          setActive(0);
+        }}
         onFocus={() => setOpen(true)}
         onBlur={() => { setOpen(false); commit(text); }}
         onKeyDown={(e) => {

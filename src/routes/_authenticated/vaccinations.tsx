@@ -423,8 +423,8 @@ function PatientCard({
                     <div className="flex flex-col gap-1">
                       <StatusBadge status={item.status} />
                       <span className="text-xs text-muted-foreground">
-                        {item.status === "administered"
-                          ? `Given ${fmtDate(item.record!.administered_date!)}`
+                        {item.status === "administered" && item.record?.administered_date
+                          ? `Given ${fmtDate(item.record.administered_date)}`
                           : item.status === "upcoming"
                             ? `On ${fmtDate(item.scheduledDate)}`
                             : diffText(item)}
