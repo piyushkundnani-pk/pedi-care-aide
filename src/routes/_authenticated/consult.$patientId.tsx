@@ -170,21 +170,7 @@ function ConsultPage() {
             </Card>
 
             <div className="grid items-start gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-            <Card className="order-2 md:order-1">
-              <CardHeader><CardTitle>Clinical notes</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="symptoms">Symptoms</Label>
-                  <Textarea id="symptoms" rows={5} value={symptoms} onChange={(e) => setSymptoms(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="diagnosis">Diagnosis <span aria-hidden="true">*</span></Label>
-                  <Textarea id="diagnosis" rows={5} required aria-required="true" value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="order-1 md:order-2">
+            <Card className="md:col-span-1">
               <CardHeader className="flex-row items-center justify-between space-y-0">
                 <CardTitle>Prescription</CardTitle>
                 <Button type="button" variant="outline" size="sm" className="gap-1" onClick={() => setRows((r) => [...r, newRow()])}>
@@ -220,6 +206,20 @@ function ConsultPage() {
                       Automatically selected when the diagnosis mentions fever.
                     </p>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="md:col-span-1">
+              <CardHeader><CardTitle>Clinical notes</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="symptoms">Symptoms</Label>
+                  <Textarea id="symptoms" rows={5} value={symptoms} onChange={(e) => setSymptoms(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="diagnosis">Diagnosis <span aria-hidden="true">*</span></Label>
+                  <Textarea id="diagnosis" rows={5} required aria-required="true" value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} />
                 </div>
               </CardContent>
             </Card>
@@ -310,7 +310,7 @@ function DrugRow({
           <Label htmlFor={`${id}-days`}>Days</Label>
           <Input id={`${id}-days`} type="number" min={1} value={row.days} onChange={(e) => onChange({ days: e.target.value })} />
         </div>
-        <Button type="button" variant="ghost" size="icon" className="min-h-11 min-w-11" disabled={!canRemove} onClick={onRemove} aria-label={`Remove drug ${n}`}>
+        <Button type="button" variant="ghost" size="icon" className="min-h-11 min-w-11 justify-self-end sm:col-span-2" disabled={!canRemove} onClick={onRemove} aria-label={`Remove drug ${n}`}>
           <Trash2 className="size-4" aria-hidden="true" />
         </Button>
       </div>
