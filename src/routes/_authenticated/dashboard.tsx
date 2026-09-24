@@ -34,6 +34,8 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
         content:
           "Today's appointments, vaccinations due and prescriptions written, at a glance.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -142,13 +144,9 @@ function Dashboard() {
 
   const seed = useMutation({
     mutationFn: loadSampleData,
-    onSuccess: ({ created }) => {
+    onSuccess: () => {
       void queryClient.invalidateQueries();
-      toast.success(
-        created > 0
-          ? `Added ${created} sample patient${created === 1 ? "" : "s"} with today's schedule.`
-          : "Sample data is already up to date for today.",
-      );
+      toast.success("Sample data reset — 5 patients loaded.");
     },
     onError: () => toast.error("Could not load the sample data. Please try again."),
   });
@@ -187,7 +185,7 @@ function Dashboard() {
       ) : (
         <Database className="size-4" aria-hidden="true" />
       )}
-      {seed.isPending ? "Loading sample data…" : "Load Sample Data"}
+      {seed.isPending ? "Resetting sample data…" : "Load Sample Data"}
     </Button>
   );
 

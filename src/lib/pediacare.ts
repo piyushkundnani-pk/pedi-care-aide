@@ -38,16 +38,10 @@ export function greeting(): string {
   return "Good evening";
 }
 
-function dobMonthsAgo(months: number): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() - months);
-  return d.toISOString().slice(0, 10);
-}
-
 const SAMPLE_PATIENTS = [
   {
     full_name: "Aarav Sharma",
-    months: 6,
+    date_of_birth: "2026-03-15",
     weight_kg: 7.4,
     gender: "M",
     parent_name: "Meera Sharma",
@@ -57,7 +51,7 @@ const SAMPLE_PATIENTS = [
   },
   {
     full_name: "Ananya Iyer",
-    months: 14,
+    date_of_birth: "2025-07-10",
     weight_kg: 9.8,
     gender: "F",
     parent_name: "Lakshmi Iyer",
@@ -67,7 +61,7 @@ const SAMPLE_PATIENTS = [
   },
   {
     full_name: "Vivaan Patel",
-    months: 33,
+    date_of_birth: "2023-12-05",
     weight_kg: 13.2,
     gender: "M",
     parent_name: "Nikhil Patel",
@@ -77,7 +71,7 @@ const SAMPLE_PATIENTS = [
   },
   {
     full_name: "Diya Reddy",
-    months: 62,
+    date_of_birth: "2021-07-22",
     weight_kg: 17.5,
     gender: "F",
     parent_name: "Sujatha Reddy",
@@ -87,7 +81,7 @@ const SAMPLE_PATIENTS = [
   },
   {
     full_name: "Kabir Nair",
-    months: 96,
+    date_of_birth: "2018-09-03",
     weight_kg: 24.1,
     gender: "M",
     parent_name: "Anil Nair",
@@ -97,88 +91,62 @@ const SAMPLE_PATIENTS = [
   },
 ];
 
-/** Seeds demo patients, today's consultations and vaccinations. Safe to run repeatedly. */
+/** Resets the signed-in clinician's data, then loads a deterministic five-patient demo day. */
 export async function loadSampleData(): Promise<{ created: number }> {
-  const names = SAMPLE_PATIENTS.map((p) => p.full_name);
-  const { data: existing, error: exErr } = await supabase
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) throw authError ?? new Error("You must be signed in.");
+
+  // Related consultations, prescriptions and vaccinations are removed by cascading deletes.
+  const { error: deleteError } = await supabase
     .from("patients")
-    .select("id, full_name")
-    .in("full_name", names);
-  if (exErr) throw exErr;
+    .delete()
+    .eq("user_id", authData.user.id);
+  if (deleteError) throw deleteError;
 
-  const byName = new Map((existing ?? []).map((p) => [p.full_name, p.id]));
-  const missing = SAMPLE_PATIENTS.filter((p) => !byName.has(p.full_name));
-
-  if (missing.length > 0) {
-    const { data: inserted, error } = await supabase
-      .from("patients")
-      .insert(
-        missing.map((p) => ({
-          full_name: p.full_name,
-          date_of_birth: dobMonthsAgo(p.months),
-          weight_kg: p.weight_kg,
-          gender: p.gender,
-          parent_name: p.parent_name,
-          parent_phone: p.parent_phone,
-          allergies: p.allergies,
-        })),
-      )
-      .select("id, full_name");
-    if (error) throw error;
-    for (const p of inserted ?? []) byName.set(p.full_name, p.id);
+  const { data: inserted, error: insertError } = await supabase
+    .from("patients")
+    .insert(
+      SAMPLE_PATIENTS.map((p) => ({
+        user_id: authData.user.id,
+        full_name: p.full_name,
+        date_of_birth: p.date_of_birth,
+        weight_kg: p.weight_kg,
+        gender: p.gender,
+        parent_name: p.parent_name,
+        parent_phone: p.parent_phone,
+        allergies: p.allergies,
+      })),
+    )
+    .select("id, full_name");
+  if (insertError) throw insertError;
+  if (!inserted || inserted.length !== SAMPLE_PATIENTS.length) {
+    throw new Error("The sample patients could not be loaded completely.");
   }
+
+  const byName = new Map(inserted.map((p) => [p.full_name, p.id]));
 
   const today = todayISO();
-  const ids = SAMPLE_PATIENTS.map((p) => byName.get(p.full_name)).filter(
-    Boolean,
-  ) as string[];
-
-  // Today's appointments (consultations) — one per sample patient, idempotent.
-  const { data: todaysConsults, error: cErr } = await supabase
-    .from("consultations")
-    .select("patient_id")
-    .in("patient_id", ids)
-    .gte("consult_date", `${today}T00:00:00`)
-    .lte("consult_date", `${today}T23:59:59`);
-  if (cErr) throw cErr;
-  const haveConsult = new Set((todaysConsults ?? []).map((c) => c.patient_id));
-  const newConsults = SAMPLE_PATIENTS.filter((p) => {
-    const id = byName.get(p.full_name);
-    return id && !haveConsult.has(id);
-  }).map((p) => ({
-    patient_id: byName.get(p.full_name)!,
-    symptoms: p.symptoms,
-  }));
-  if (newConsults.length > 0) {
-    const { error } = await supabase.from("consultations").insert(newConsults);
-    if (error) throw error;
-  }
+  const newConsults = SAMPLE_PATIENTS.map((p) => {
+    const patientId = byName.get(p.full_name);
+    if (!patientId) throw new Error(`Missing sample patient: ${p.full_name}`);
+    return { patient_id: patientId, symptoms: p.symptoms, appointment_status: "scheduled" };
+  });
+  const { error: consultError } = await supabase.from("consultations").insert(newConsults);
+  if (consultError) throw consultError;
 
   // Two vaccinations due today.
   const vaccines = [
     { name: "Aarav Sharma", vaccine_name: "DTP Booster" },
     { name: "Ananya Iyer", vaccine_name: "MMR Dose 1" },
   ];
-  const { data: existingVax, error: vErr } = await supabase
-    .from("vaccination_records")
-    .select("patient_id, vaccine_name")
-    .eq("scheduled_date", today);
-  if (vErr) throw vErr;
-  const haveVax = new Set(
-    (existingVax ?? []).map((v) => `${v.patient_id}|${v.vaccine_name}`),
-  );
   const newVax = vaccines
-    .map((v) => ({
-      patient_id: byName.get(v.name)!,
-      vaccine_name: v.vaccine_name,
-      scheduled_date: today,
-      status: "scheduled",
-    }))
-    .filter((v) => v.patient_id && !haveVax.has(`${v.patient_id}|${v.vaccine_name}`));
-  if (newVax.length > 0) {
-    const { error } = await supabase.from("vaccination_records").insert(newVax);
-    if (error) throw error;
-  }
+    .map((v) => {
+      const patientId = byName.get(v.name);
+      if (!patientId) throw new Error(`Missing vaccination patient: ${v.name}`);
+      return { patient_id: patientId, vaccine_name: v.vaccine_name, scheduled_date: today, status: "scheduled" };
+    });
+  const { error: vaccineError } = await supabase.from("vaccination_records").insert(newVax);
+  if (vaccineError) throw vaccineError;
 
-  return { created: missing.length };
+  return { created: SAMPLE_PATIENTS.length };
 }
