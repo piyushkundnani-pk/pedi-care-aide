@@ -48,6 +48,13 @@
   --color-safety-warning-bg: var(--safety-warning-bg);
   --color-safety-danger: var(--safety-danger);
   --color-safety-danger-bg: var(--safety-danger-bg);
+  --color-wa-header: var(--wa-header);
+  --color-wa-header-foreground: var(--wa-header-foreground);
+  --color-wa-chat: var(--wa-chat);
+  --color-wa-bubble: var(--wa-bubble);
+  --color-wa-bubble-foreground: var(--wa-bubble-foreground);
+  --color-wa-meta: var(--wa-meta);
+  --color-wa-read: var(--wa-read);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -95,6 +102,14 @@
   --safety-warning-bg: oklch(0.965 0.045 85);
   --safety-danger: oklch(0.39 0.17 25);
   --safety-danger-bg: oklch(0.965 0.035 25);
+  /* WhatsApp preview (same in both themes to mimic the app); bubble text > 12:1 */
+  --wa-header: #075e54;
+  --wa-header-foreground: #ffffff;
+  --wa-chat: #efeae2;
+  --wa-bubble: #d9fdd3;
+  --wa-bubble-foreground: #111b21;
+  --wa-meta: #54656f;
+  --wa-read: #0b7ec2;
   --border: oklch(0.915 0.014 247);
   --input: oklch(0.9 0.016 247);
   --ring: oklch(0.49 0.145 251);
