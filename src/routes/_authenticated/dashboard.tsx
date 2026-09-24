@@ -10,11 +10,13 @@ import {
   Loader2,
   BellRing,
   Check,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatAge, formatToday, greeting, loadSampleData, todayISO } from "@/lib/pediacare";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -51,7 +53,7 @@ async function fetchAppointments() {
   const { data, error } = await supabase
     .from("consultations")
     .select(
-      "id, consult_date, patient_id, patients(id, full_name, date_of_birth, weight_kg, allergies)",
+      "id, consult_date, patient_id, appointment_status, patients(id, full_name, date_of_birth, weight_kg, allergies)",
     )
     .gte("consult_date", `${today}T00:00:00`)
     .lte("consult_date", `${today}T23:59:59`)
@@ -60,9 +62,10 @@ async function fetchAppointments() {
   return (data ?? [])
     .map((row) => ({
       id: row.id,
+      status: row.appointment_status,
       patient: row.patients as unknown as PatientRow | null,
     }))
-    .filter((r) => r.patient !== null) as { id: string; patient: PatientRow }[];
+    .filter((r) => r.patient !== null) as { id: string; status: string; patient: PatientRow }[];
 }
 
 async function fetchVaccinations() {
@@ -165,6 +168,10 @@ function Dashboard() {
     onError: () => toast.error("Could not send the reminder."),
   });
 
+  const queue = (appointments.data ?? []).filter((a) => a.status !== "completed");
+  const completed = (appointments.data ?? []).filter((a) => a.status === "completed");
+  const [completedOpen, setCompletedOpen] = useState(true);
+
   const isEmpty =
     (appointments.data?.length ?? 0) === 0 && (vaccinations.data?.length ?? 0) === 0;
 
@@ -203,7 +210,7 @@ function Dashboard() {
             <Metric
               icon={CalendarCheck}
               label="Appointments today"
-              value={appointments.data?.length}
+              value={appointments.isLoading ? undefined : queue.length}
               loading={appointments.isLoading}
             />
             <Metric
@@ -227,7 +234,7 @@ function Dashboard() {
               <Skeleton rows={3} />
             ) : appointments.error ? (
               <ErrorNote />
-            ) : appointments.data!.length === 0 ? (
+            ) : queue.length === 0 ? (
               <EmptyState
                 message="No appointments booked for today."
                 hint={
@@ -239,7 +246,7 @@ function Dashboard() {
               />
             ) : (
               <ul role="list" className="divide-y divide-border">
-                {appointments.data!.map(({ id, patient }) => (
+                {queue.map(({ id, patient }) => (
                   <li
                     key={id}
                     className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
@@ -262,6 +269,12 @@ function Dashboard() {
                       <Link
                         to="/consult/$patientId"
                         params={{ patientId: patient.id }}
+                        onClick={() => {
+                          const w = window as unknown as { __consultTimer?: boolean };
+                          if (w.__consultTimer) console.timeEnd("dashboard-to-consult");
+                          console.time("dashboard-to-consult");
+                          w.__consultTimer = true;
+                        }}
                         aria-label={`Start consultation for ${patient.full_name}`}
                       >
                         Start Consult
@@ -328,6 +341,48 @@ function Dashboard() {
             )}
           </Card>
         </div>
+
+        {completed.length > 0 && (
+          <Collapsible open={completedOpen} onOpenChange={setCompletedOpen} className="mt-6">
+            <section aria-labelledby="completed-today" className="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex min-h-11 w-full items-center justify-between rounded-md text-left"
+                  aria-label={`${completedOpen ? "Collapse" : "Expand"} completed today (${completed.length})`}
+                >
+                  <h2 id="completed-today" className="text-base font-semibold text-card-foreground">
+                    Completed Today ({completed.length})
+                  </h2>
+                  <ChevronDown className={`size-5 transition-transform ${completedOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <ul role="list" className="mt-2 divide-y divide-border">
+                  {completed.map(({ id, patient }) => (
+                    <li key={id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="font-medium text-foreground">{patient.full_name}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {formatAge(patient.date_of_birth)} · {patient.weight_kg} kg
+                        </p>
+                      </div>
+                      <Button asChild size="sm" variant="outline" className="shrink-0">
+                        <Link
+                          to="/prescription/$consultId"
+                          params={{ consultId: id }}
+                          aria-label={`View prescription for ${patient.full_name}`}
+                        >
+                          View Prescription
+                        </Link>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </CollapsibleContent>
+            </section>
+          </Collapsible>
+        )}
       </main>
     </div>
   );
