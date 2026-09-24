@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { IAP_SCHEDULE, addDays, ageInMonths } from "@/lib/iap-schedule";
 
 export function formatAge(dateOfBirth: string): string {
   const dob = new Date(dateOfBirth);
@@ -134,17 +135,42 @@ export async function loadSampleData(): Promise<{ created: number }> {
   const { error: consultError } = await supabase.from("consultations").insert(newConsults);
   if (consultError) throw consultError;
 
-  // Two vaccinations due today.
-  const vaccines = [
-    { name: "Aarav Sharma", vaccine_name: "DTP Booster" },
-    { name: "Ananya Iyer", vaccine_name: "MMR Dose 1" },
-  ];
-  const newVax = vaccines
-    .map((v) => {
-      const patientId = byName.get(v.name);
-      if (!patientId) throw new Error(`Missing vaccination patient: ${v.name}`);
-      return { patient_id: patientId, vaccine_name: v.vaccine_name, scheduled_date: today, status: "scheduled" };
-    });
+  // Realistic administered history: every milestone at least 1 month old is given,
+  // except one deliberate gap each for three patients so the demo shows attention items.
+  const SKIP: Record<string, string> = {
+    "Aarav Sharma": "Rotavirus-3",
+    "Ananya Iyer": "Hepatitis A-1",
+    "Vivaan Patel": "Typhoid Conjugate Vaccine",
+  };
+  const newVax: {
+    patient_id: string;
+    vaccine_name: string;
+    scheduled_date: string;
+    administered_date: string | null;
+    status: string;
+  }[] = [];
+  for (const p of SAMPLE_PATIENTS) {
+    const patientId = byName.get(p.full_name)!;
+    const age = ageInMonths(p.date_of_birth, today);
+    for (const m of IAP_SCHEDULE) {
+      if (m.days / 30.4375 > age - 1) continue;
+      const scheduled = addDays(p.date_of_birth, m.days);
+      for (const vaccine of m.vaccines) {
+        if (SKIP[p.full_name] === vaccine) continue;
+        let given = addDays(scheduled, Math.floor(Math.random() * 15));
+        if (given > today) given = today;
+        newVax.push({ patient_id: patientId, vaccine_name: vaccine, scheduled_date: scheduled, administered_date: given, status: "administered" });
+      }
+    }
+  }
+  // One vaccine due exactly today so the dashboard card has an entry.
+  newVax.push({
+    patient_id: byName.get("Aarav Sharma")!,
+    vaccine_name: "OPV-1",
+    scheduled_date: today,
+    administered_date: null,
+    status: "scheduled",
+  });
   const { error: vaccineError } = await supabase.from("vaccination_records").insert(newVax);
   if (vaccineError) throw vaccineError;
 
