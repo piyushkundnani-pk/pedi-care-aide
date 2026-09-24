@@ -11,13 +11,33 @@ import {
   BellRing,
   Check,
   ChevronDown,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { formatAge, formatToday, greeting, loadSampleData, todayISO } from "@/lib/pediacare";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  formatAge,
+  formatToday,
+  greeting,
+  hasAnyPatients,
+  mergeSampleData,
+  resetDemoData,
+  todayISO,
+} from "@/lib/pediacare";
 import { consultPatientQueryOptions } from "@/lib/patient-query";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -143,41 +163,43 @@ function Dashboard() {
     };
   }, [queryClient]);
 
-  const seed = useMutation({
-    mutationFn: loadSampleData,
+  const reset = useMutation({
+    mutationFn: resetDemoData,
     onSuccess: () => {
       void queryClient.invalidateQueries();
       toast.success("Sample data reset — 5 patients loaded.");
     },
+    onError: () => toast.error("Could not reset the demo data. Please try again."),
+  });
+
+  const seed = useMutation({
+    mutationFn: mergeSampleData,
+    onSuccess: () => {
+      void queryClient.invalidateQueries();
+      toast.success("Seed data merged. Existing progress preserved.");
+    },
     onError: () => toast.error("Could not load the sample data. Please try again."),
   });
 
-  const reminder = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("vaccination_records")
-        .update({ reminder_sent_at: new Date().toISOString() })
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["vaccinations", todayISO()] });
-      toast.success("Reminder sent to the parent.");
-    },
-    onError: () => toast.error("Could not send the reminder."),
-  });
+  const autoSeeded = useRef(false);
+  useEffect(() => {
+    if (autoSeeded.current) return;
+    autoSeeded.current = true;
+    hasAnyPatients()
+      .then((has) => {
+        if (!has) seed.mutate();
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const queue = (appointments.data ?? []).filter((a) => a.status !== "completed");
-  const completed = (appointments.data ?? []).filter((a) => a.status === "completed");
-  const [completedOpen, setCompletedOpen] = useState(true);
-
-  const isEmpty =
-    (appointments.data?.length ?? 0) === 0 && (vaccinations.data?.length ?? 0) === 0;
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const busy = seed.isPending || reset.isPending;
 
   const seedButton = (
     <Button
       onClick={() => seed.mutate()}
-      disabled={seed.isPending}
+      disabled={busy}
       variant="outline"
       className="gap-2"
     >
@@ -186,8 +208,49 @@ function Dashboard() {
       ) : (
         <Database className="size-4" aria-hidden="true" />
       )}
-      {seed.isPending ? "Resetting sample data…" : "Load Sample Data"}
+      {seed.isPending ? "Loading sample data…" : "Load Sample Data"}
     </Button>
+  );
+
+  const headerButtons = (
+    <div className="flex flex-wrap gap-2">
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogTrigger asChild>
+          <Button
+            variant="outline"
+            disabled={busy}
+            className="gap-2 border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            {reset.isPending ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <RotateCcw className="size-4" aria-hidden="true" />
+            )}
+            {reset.isPending ? "Resetting…" : "Reset Demo Data"}
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset all demo data?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete all patients, consultations, prescriptions, and vaccination
+              records, then reload the 5 sample patients with fresh vaccination history.
+              Reminders sent or vaccines marked administered during this session will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => reset.mutate()}
+            >
+              Yes, Reset
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {seedButton}
+    </div>
   );
 
   return (
@@ -201,7 +264,7 @@ function Dashboard() {
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">{formatToday()}</p>
           </div>
-          {seedButton}
+          {headerButtons}
         </div>
 
         <section aria-label="Today at a glance" className="mt-6">
