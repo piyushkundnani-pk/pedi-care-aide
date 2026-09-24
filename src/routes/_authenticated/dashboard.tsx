@@ -164,9 +164,9 @@ function Dashboard() {
 
   const reset = useMutation({
     mutationFn: resetDemoData,
-    onSuccess: () => {
+    onSuccess: (res) => {
       void queryClient.invalidateQueries();
-      toast.success("Sample data reset — 5 patients loaded.");
+      toast.success(`Demo data reset for ${res.email}. 5 patients loaded with today's schedule.`);
     },
     onError: () => toast.error("Could not reset the demo data. Please try again."),
   });
