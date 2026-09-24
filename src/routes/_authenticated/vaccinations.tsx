@@ -66,6 +66,7 @@ function VaccinationsPage() {
   const today = todayISO();
   const q = useQuery({ queryKey: QK, queryFn: fetchData });
   const [reminderTarget, setReminderTarget] = useState<ReminderTarget | null>(null);
+  const [announcement, setAnnouncement] = useState("");
 
   async function upsert(patient: Patient, item: ScheduleItem, fields: { reminder_sent_at?: string; administered_date?: string; status?: string }) {
     if (item.record) {
@@ -87,11 +88,17 @@ function VaccinationsPage() {
     mutationFn: ({ patient, item }: { patient: Patient; item: ScheduleItem }) =>
       upsert(patient, item, { reminder_sent_at: new Date().toISOString() }),
     onSuccess: async (_d, { patient }) => {
-      toast.success(`Reminder sent to ${patient.parent_name ?? "parent"}`);
+      const message = `Reminder sent to ${patient.parent_name ?? "parent"}`;
+      toast.success(message);
+      setAnnouncement(message);
       setReminderTarget(null);
       await qc.invalidateQueries({ queryKey: QK });
     },
-    onError: () => toast.error("Could not send the reminder."),
+    onError: () => {
+      const message = "Could not send the reminder.";
+      toast.error(message);
+      setAnnouncement(message);
+    },
   });
 
   const administer = useMutation({
@@ -143,6 +150,7 @@ function VaccinationsPage() {
     <div className="min-h-screen bg-muted/40">
       <AppHeader />
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div role="status" aria-live="polite" className="sr-only">{announcement}</div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           Vaccination Schedule
         </h1>
