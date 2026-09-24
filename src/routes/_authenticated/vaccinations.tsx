@@ -1,20 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { AlertTriangle, BellRing, Check, ChevronDown, Clock, Send, Syringe } from "lucide-react";
+import { AlertTriangle, BellRing, Check, ChevronDown, Clock, Syringe } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppHeader } from "@/components/AppHeader";
 import { ReminderPreviewDialog } from "@/components/ReminderPreviewDialog";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { formatAge, todayISO } from "@/lib/pediacare";
 import {
   IAP_SCHEDULE_VERSION,
